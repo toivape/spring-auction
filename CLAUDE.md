@@ -17,6 +17,7 @@ Project-specific notes for spring-auction. See PLAN.md (parent directory) for th
 - `@WebMvcTest` / `@AutoConfigureMockMvc` → `org.springframework.boot.webmvc.test.autoconfigure`
 - `SecurityMockMvcResultMatchers` (e.g. `authenticated()`, `unauthenticated()`) → `org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers` (package is `response`, not `result`, in spring-security-test 7.0.6). `SecurityMockMvcRequestBuilders.formLogin(...)` and `SecurityMockMvcRequestPostProcessors.csrf()` are still under `...servlet.request`.
 - If a test-annotation/matcher import doesn't resolve, it likely moved packages on this version — check the jar (`jar tf ~/.m2/repository/.../<artifact>-<version>.jar | grep -i <ClassName>`) rather than guessing.
+- `webjars-locator-core`'s versionless `/webjars/<name>/<file>` resolution is **not** wired up in Boot 4.0.7 (no `webjar` string appears anywhere in any `spring-boot*` jar) — don't add that dependency expecting it to do anything. Use the versioned path instead, e.g. `/webjars/bootstrap/5.3.7/css/bootstrap.min.css`; the base `/webjars/**` → classpath `META-INF/resources/webjars/` static mapping still works fine on its own.
 
 ## Local Postgres / Docker
 - `compose.yaml`'s `POSTGRES_DB`/`USER`/`PASSWORD` only take effect on a fresh volume. Changing them and hitting "database X does not exist" means the fix is `docker compose down -v` — that deletes the local dev volume, so confirm with the user before running it.
