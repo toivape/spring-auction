@@ -1,0 +1,22 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: spring-auction
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:auction}
+    driverClassName: org.postgresql.Driver
+    username: ${DB_USERNAME:myuser}
+    password: ${DB_PASSWORD:secret}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+  flyway:
+    enabled: true
+    validate-on-migrate: true
+
+app:
+  ingestion:
+    api-key: ${INGESTION_API_KEY:dev-ingestion-key}
