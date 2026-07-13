@@ -58,7 +58,7 @@ class IngestControllerIntegrationTest {
                         .header(ApiKeyAuthenticationFilter.API_KEY_HEADER, ingestionSecurityProperties.apiKey())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(NEW_AUCTION_ITEM_JSON))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         List<Auction> auctions = auctionRepository.findAll();
         assertEquals(1, auctions.size());
