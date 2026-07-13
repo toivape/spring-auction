@@ -20,3 +20,6 @@ spring:
 app:
   ingestion:
     api-key: ${INGESTION_API_KEY:dev-ingestion-key}
+  admin:
+    email: ${ADMIN_EMAIL:admin@example.com}
+    password: ${ADMIN_PASSWORD:dev-admin-password}

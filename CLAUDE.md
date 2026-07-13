@@ -12,25 +12,30 @@ Project-specific notes for spring-auction. See PLAN.md (parent directory) for th
 - Spring Data JDBC, not JPA — no Hibernate. Entities are plain records/classes (`@Table`, `@Id`), repositories extend `ListCrudRepository`/`CrudRepository`.
 - Package root `fi.petri.springauction`, package-by-feature (`auction/`, `ingest/`, `security/`, ...).
 
-## Spring Boot 4 test-annotation relocations
+## Spring Boot 4 / Spring Security 7 test-annotation relocations
 - `@DataJdbcTest` → `org.springframework.boot.data.jdbc.test.autoconfigure.DataJdbcTest`
 - `@WebMvcTest` / `@AutoConfigureMockMvc` → `org.springframework.boot.webmvc.test.autoconfigure`
-- If a test-annotation import doesn't resolve, it likely moved packages in Boot 4 — check the jar (`jar tf ~/.m2/repository/org/springframework/boot/spring-boot-<x>-test/<version>/*.jar`) rather than guessing.
+- `SecurityMockMvcResultMatchers` (e.g. `authenticated()`, `unauthenticated()`) → `org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers` (package is `response`, not `result`, in spring-security-test 7.0.6). `SecurityMockMvcRequestBuilders.formLogin(...)` and `SecurityMockMvcRequestPostProcessors.csrf()` are still under `...servlet.request`.
+- If a test-annotation/matcher import doesn't resolve, it likely moved packages on this version — check the jar (`jar tf ~/.m2/repository/.../<artifact>-<version>.jar | grep -i <ClassName>`) rather than guessing.
 
 ## Local Postgres / Docker
 - `compose.yaml`'s `POSTGRES_DB`/`USER`/`PASSWORD` only take effect on a fresh volume. Changing them and hitting "database X does not exist" means the fix is `docker compose down -v` — that deletes the local dev volume, so confirm with the user before running it.
-- Tests use a separate, ephemeral Testcontainers Postgres (`TestcontainersConfiguration`, `public`) — unrelated to the `compose.yaml` dev container, no reset needed there.
+- Editing `V1__create_database.sql` in place (see Migrations below) leaves the dev volume's `flyway_schema_history` checksum stale the next time the app actually starts against it — Flyway refuses to run with "Migration checksum mismatch". A `docker compose down -v` (fresh volume, re-migrates cleanly) is the reliable fix; confirm with the user first since it's destructive. Don't just patch the checksum in `flyway_schema_history` — the dev volume's actual table/column names can *also* be stale from before an in-place edit (e.g. still `auctions`/`users` from before a rename), so the schema itself, not just the recorded checksum, needs to be current.
+- Tests use a separate, ephemeral Testcontainers Postgres (`TestcontainersConfiguration`, `public`) — unrelated to the `compose.yaml` dev container, no reset needed there, and unaffected by the checksum issue above since it always migrates from empty.
 
 ## Security
 - With no `SecurityFilterChain` bean at all, Spring Boot's default auto-config secures every path and logs a random dev password on startup.
-- Once any `SecurityFilterChain` bean exists, it's the *only* chain unless a catch-all is added — paths outside its `securityMatcher` become fully unsecured, not auto-protected by anything else. `ingestionChain` currently only covers `/api/ingest/**`.
-- `anyRequest().authenticated()` with no custom `AuthenticationEntryPoint` returns **403** for a missing/invalid credential, not 401.
-- `/api/ingest` requires header `X-API-Key` matching `app.ingestion.api-key` (env `INGESTION_API_KEY`, dev default `dev-ingestion-key`).
+- Once any `SecurityFilterChain` bean exists, it's the *only* chain unless a catch-all is added — paths outside every `securityMatcher` become fully unsecured, not auto-protected by anything else. `ingestionChain` covers `/api/ingest/**`, `adminChain` covers `/admin/**`; everything else is still unsecured until a Google-OAuth `appChain` catch-all is added.
+- `ingestionChain`: stateless, CSRF disabled, `X-API-Key` header matching `app.ingestion.api-key` (env `INGESTION_API_KEY`, dev default `dev-ingestion-key`). `anyRequest().authenticated()` with no custom `AuthenticationEntryPoint` returns **403** for a missing/invalid credential, not 401.
+- `adminChain`: session-based `formLogin()` at `/admin/login`, `hasRole("ADMIN")`. CSRF stays **enabled** (session cookies, unlike ingestion) — two distinct failure modes to keep straight: a POST with **no** `_csrf` at all is rejected by `CsrfFilter` itself with 403 before auth ever runs; a POST **with** a valid CSRF token but no authenticated session gets a **302 redirect to the login page** instead (anonymous + access-denied is translated to an auth challenge by `ExceptionTranslationFilter`, not a 403).
+- Admin login is seeded/re-hashed on every startup by `AdminBootstrapRunner` from `app.admin.email`/`app.admin.password` (env `ADMIN_EMAIL`/`ADMIN_PASSWORD`, dev defaults `admin@example.com`/`dev-admin-password`) — no separate seed migration needed, and the password always matches the current property.
+- Spring Data JDBC quirk: never call `repository.save()` for an upsert on an entity whose `@Id` is manually assigned (not DB-generated) — a non-null id always triggers an `UPDATE`, which fails with 0-rows-affected on first insert. Use a raw `JdbcClient`/`INSERT ... ON CONFLICT` instead (see `AdminBootstrapRunner`).
 
 ## Testing conventions
-- Full REST→DB tests: `@SpringBootTest` + `@AutoConfigureMockMvc` + `@Import(TestcontainersConfiguration.class)` + `@Transactional` (rollback keeps the shared container clean between test methods). Deliberately not `@WebMvcTest` — that slice mocks out the repository layer.
+- Full REST→DB / login→DB tests: `@SpringBootTest` + `@AutoConfigureMockMvc` + `@Import(TestcontainersConfiguration.class)` + `@Transactional` (rollback keeps the shared container clean between test methods). Deliberately not `@WebMvcTest` — that slice mocks out the repository layer.
+- For auth-gated endpoints, prefer a real `MockMvc` login (`SecurityMockMvcRequestBuilders.formLogin(...)`, reuse the returned session) over `@WithMockUser`/`.with(user(...))` shortcuts — exercises the actual `SecurityFilterChain`, not just the controller.
 - Test packages mirror main packages (e.g. the `ingest` controller test lives under `src/test/.../ingest/`).
 
 ## Migrations
-- Single-file schema so far (`V1__create_database.sql`). While pre-release (no real deployed data), edit it in place rather than adding `V2`/`V3` migrations; switch to additive migrations once anything is actually deployed.
+- Single-file schema so far (`V1__create_database.sql`). While pre-release (no real deployed data), edit it in place rather than adding `V2`/`V3` migrations; switch to additive migrations once anything is actually deployed. See the dev-volume checksum gotcha under Local Postgres/Docker above — an in-place edit means the dev container needs a reset before it'll start again.
 - Table names are singular (`auction`, `bid`, not `auctions`/`bids`). `"user"` is quoted in SQL — it's a reserved word in Postgres.
