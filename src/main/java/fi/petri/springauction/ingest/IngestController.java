@@ -18,7 +18,7 @@ public class IngestController {
 
     @PostMapping("/api/ingest")
     @ResponseStatus(HttpStatus.CREATED)
-    public void ingest(@Valid @RequestBody NewAuctionItem body) {
+    public void ingest(@Valid @RequestBody AuctionRequest body) {
         ingestService.ingest(body);
     }
 

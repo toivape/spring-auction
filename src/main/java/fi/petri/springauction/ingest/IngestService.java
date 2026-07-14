@@ -19,7 +19,7 @@ public class IngestService {
         this.auctionRepository = auctionRepository;
     }
 
-    public void ingest(NewAuctionItem item) {
+    public void ingest(AuctionRequest item) {
         Auction auction = new Auction(
                 null,
                 item.id(),
