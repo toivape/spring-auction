@@ -27,7 +27,7 @@ CREATE TABLE auction
     start_price      NUMERIC(12, 2) NOT NULL,
     current_value    NUMERIC(12, 2) NOT NULL,
     currency         TEXT           NOT NULL DEFAULT 'EUR',
-    starts_at        TIMESTAMPTZ    NOT NULL,
+    starts_at        TIMESTAMPTZ,                     -- set by admin on activation; defaults to activation time
     ends_at          TIMESTAMPTZ,                     -- filled in by admin while editing the draft
     comment          TEXT,
     serial_number    TEXT,
@@ -86,3 +86,12 @@ CREATE TABLE shedlock
     locked_at  TIMESTAMP    NOT NULL,
     locked_by  VARCHAR(255) NOT NULL
 );
+
+INSERT INTO auction (item_id, title, description, category, lifecycle_status, start_price, current_value, currency)
+VALUES
+    ('TEST-00001', 'Test auction 1', 'Seeded test auction 1', 'test', 'DRAFT', 100.00, 100.00, 'EUR'),
+    ('TEST-00002', 'Test auction 2', 'Seeded test auction 2', 'test', 'DRAFT', 200.00, 200.00, 'EUR'),
+    ('TEST-00003', 'Test auction 3', 'Seeded test auction 3', 'test', 'DRAFT', 300.00, 300.00, 'EUR'),
+    ('TEST-00004', 'Test auction 4', 'Seeded test auction 4', 'test', 'DRAFT', 400.00, 400.00, 'EUR'),
+    ('TEST-00005', 'Test auction 5', 'Seeded test auction 5', 'test', 'DRAFT', 500.00, 500.00, 'EUR')
+ON CONFLICT (item_id) DO NOTHING;

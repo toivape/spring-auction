@@ -1,0 +1,449 @@
+/* ==========================================================================
+   Admin — "Manifest" design system
+   An internal ops console for processing used-electronics auction lots.
+   Metaphor: the paper shipping manifest / asset tag / ledger stamp used in
+   IT asset disposition — not a generic SaaS dashboard.
+   ========================================================================== */
+
+:root {
+    --ink: #1b1d1f;
+    --ink-raised: #24272a;
+    --ink-line: #35383b;
+    --text-on-ink: #e9e6dd;
+    --text-muted-on-ink: #9a9d9f;
+
+    --paper: #e7e2d3;
+    --paper-line: #c9c0a8;
+    --text-on-paper: #211f1a;
+    --text-muted-on-paper: #6b6455;
+
+    --stamp-green: #2c5f45;
+    --stamp-amber: #8f5417;
+    --stamp-red: #7c332b;
+    --accent-teal: #3f7f80;
+
+    --font-display: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --font-body: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: var(--ink);
+    color: var(--text-on-ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: var(--accent-teal);
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent-teal);
+    outline-offset: 2px;
+}
+
+/* ---- shell ------------------------------------------------------------- */
+
+.shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.shell-header {
+    background: var(--ink-raised);
+    border-bottom: 1px solid var(--ink-line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1.5rem;
+    flex-wrap: wrap;
+}
+
+.wordmark {
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.95rem;
+    color: var(--text-on-ink);
+    text-decoration: none;
+}
+
+.wordmark-sub {
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    color: var(--text-muted-on-ink);
+    font-size: 0.8rem;
+}
+
+.who {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-muted-on-ink);
+}
+
+.who-email {
+    color: var(--text-on-ink);
+}
+
+.logout-form {
+    margin: 0;
+}
+
+.link-button {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    color: var(--accent-teal);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.shell-main {
+    flex: 1;
+    padding: 2.5rem 1.5rem 4rem;
+}
+
+.shell-main--center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shell-container {
+    max-width: 72rem;
+    margin: 0 auto;
+}
+
+/* ---- panel (paper) ------------------------------------------------------ */
+
+.panel {
+    background: var(--paper);
+    color: var(--text-on-paper);
+    border-radius: 6px;
+    box-shadow: 0 24px 48px -28px rgba(0, 0, 0, 0.65);
+    padding: 1.75rem 2rem 2rem;
+}
+
+.panel-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 2px solid var(--text-on-paper);
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.panel-title {
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.panel-count {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: var(--text-muted-on-paper);
+    text-transform: uppercase;
+}
+
+/* ---- manifest table ------------------------------------------------------ */
+
+.table-scroll {
+    overflow-x: auto;
+}
+
+.manifest-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 52rem;
+}
+
+.manifest-table thead th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted-on-paper);
+    border-bottom: 1px solid var(--text-on-paper);
+    padding: 0 0.75rem 0.5rem 0;
+    white-space: nowrap;
+}
+
+.manifest-table tbody td {
+    padding: 0.85rem 0.75rem 0.85rem 0;
+    border-bottom: 1px solid var(--paper-line);
+    font-size: 0.875rem;
+    vertical-align: middle;
+}
+
+.manifest-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.manifest-table tbody tr:hover {
+    background: rgba(33, 31, 26, 0.035);
+}
+
+.cell-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+.cell-muted {
+    color: var(--text-muted-on-paper);
+}
+
+.cell-title {
+    font-weight: 600;
+}
+
+.cell-actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* ---- stamp (signature element) ------------------------------------------ */
+
+.stamp {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border: 2px solid currentColor;
+    border-radius: 4px;
+    mix-blend-mode: multiply;
+    transform: rotate(-3deg);
+    animation: stamp-down 0.28s ease-out backwards;
+}
+
+.manifest-table tbody tr:nth-child(3n+1) .stamp { transform: rotate(-3deg); }
+.manifest-table tbody tr:nth-child(3n+2) .stamp { transform: rotate(2deg); }
+.manifest-table tbody tr:nth-child(3n) .stamp { transform: rotate(-1deg); }
+
+.manifest-table tbody tr:nth-child(2) .stamp { animation-delay: 0.03s; }
+.manifest-table tbody tr:nth-child(3) .stamp { animation-delay: 0.06s; }
+.manifest-table tbody tr:nth-child(4) .stamp { animation-delay: 0.09s; }
+.manifest-table tbody tr:nth-child(5) .stamp { animation-delay: 0.12s; }
+.manifest-table tbody tr:nth-child(n+6) .stamp { animation-delay: 0.15s; }
+
+.stamp--draft { color: var(--stamp-amber); }
+.stamp--active { color: var(--stamp-green); }
+.stamp--archived { color: var(--stamp-red); }
+
+@keyframes stamp-down {
+    from {
+        opacity: 0;
+        transform: scale(1.6) rotate(-8deg);
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stamp {
+        animation: none;
+    }
+}
+
+/* ---- buttons ------------------------------------------------------------- */
+
+.btn-ghost {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 0.4rem 0.8rem;
+    border: 1.5px solid currentColor;
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.btn-activate {
+    color: var(--stamp-amber);
+}
+
+.btn-activate:hover {
+    background: var(--stamp-amber);
+    color: var(--paper);
+}
+
+.btn-archive {
+    color: var(--stamp-red);
+}
+
+.btn-archive:hover {
+    background: var(--stamp-red);
+    color: var(--paper);
+}
+
+.btn-primary {
+    display: inline-block;
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    padding: 0.65rem 1.4rem;
+    border: none;
+    border-radius: 4px;
+    background: var(--text-on-paper);
+    color: var(--paper);
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    background: var(--accent-teal);
+}
+
+.action-inline {
+    display: inline;
+    margin: 0 0 0 0.4rem;
+}
+
+.action-inline:first-child {
+    margin-left: 0;
+}
+
+/* ---- empty state ---------------------------------------------------------- */
+
+.empty-state {
+    padding: 2rem 0;
+    color: var(--text-muted-on-paper);
+    font-size: 0.9rem;
+}
+
+/* ---- entry card (login / activate form) ----------------------------------- */
+
+.entry-card {
+    width: 100%;
+    max-width: 26rem;
+}
+
+.entry-card .panel-title {
+    margin-bottom: 0.35rem;
+}
+
+.entry-card-sub {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-muted-on-paper);
+    margin: 0 0 1.5rem;
+}
+
+.field {
+    margin-bottom: 1.25rem;
+}
+
+.field label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted-on-paper);
+    margin-bottom: 0.35rem;
+}
+
+.field input {
+    width: 100%;
+    border: none;
+    border-bottom: 1.5px solid var(--paper-line);
+    background: transparent;
+    color: var(--text-on-paper);
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    padding: 0.4rem 0.1rem;
+}
+
+.field input:focus {
+    border-bottom-color: var(--text-on-paper);
+    outline: none;
+}
+
+.field-hint {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted-on-paper);
+    margin-top: 0.35rem;
+}
+
+.notice {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 4px;
+    margin-bottom: 1.25rem;
+}
+
+.notice--error {
+    background: rgba(124, 51, 43, 0.12);
+    color: var(--stamp-red);
+    border: 1px solid rgba(124, 51, 43, 0.35);
+}
+
+.notice--info {
+    background: rgba(63, 127, 128, 0.12);
+    color: var(--accent-teal);
+    border: 1px solid rgba(63, 127, 128, 0.35);
+}
+
+.back-link {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-muted-on-paper);
+    text-decoration: none;
+    margin-bottom: 1rem;
+}
+
+.back-link:hover {
+    color: var(--text-on-paper);
+}
+
+/* ---- responsive ------------------------------------------------------------ */
+
+@media (max-width: 40rem) {
+    .shell-main {
+        padding: 1.5rem 1rem 3rem;
+    }
+
+    .panel {
+        padding: 1.25rem 1.25rem 1.5rem;
+    }
+}

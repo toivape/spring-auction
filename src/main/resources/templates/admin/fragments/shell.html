@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<header th:fragment="header" class="shell-header">
+    <a class="wordmark" th:href="@{/admin/auctions}">Manifest <span class="wordmark-sub">— Auction Admin</span></a>
+    <div class="who">
+        <span class="who-email" sec:authentication="name">admin</span>
+        <form th:action="@{/admin/logout}" method="post" class="logout-form">
+            <button type="submit" class="link-button">Log out</button>
+        </form>
+    </div>
+</header>
+</body>
+</html>

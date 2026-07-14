@@ -17,9 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -61,8 +64,9 @@ class IngestControllerIntegrationTest {
                 .andExpect(status().isCreated());
 
         List<Auction> auctions = auctionRepository.findAll();
-        assertEquals(1, auctions.size());
-        Auction saved = auctions.get(0);
+        Optional<Auction> match = auctions.stream().filter(a -> "IB-12345".equals(a.itemId())).findFirst();
+        assertTrue(match.isPresent());
+        Auction saved = match.get();
         assertEquals("IB-12345", saved.itemId());
         assertEquals("Dell laptop, lightly used", saved.description());
         assertEquals("laptops", saved.category());
@@ -85,7 +89,7 @@ class IngestControllerIntegrationTest {
                         .content(NEW_AUCTION_ITEM_JSON))
                 .andExpect(status().isForbidden());
 
-        assertEquals(0, auctionRepository.findAll().size());
+        assertFalse(auctionRepository.findAll().stream().anyMatch(a -> "IB-12345".equals(a.itemId())));
     }
 
 }
