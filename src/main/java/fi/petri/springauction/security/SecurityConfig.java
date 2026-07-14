@@ -73,7 +73,9 @@ public class SecurityConfig {
     @Conditional(GoogleOAuthConfiguredCondition.class)
     public SecurityFilterChain appChain(HttpSecurity http, CustomOidcUserService customOidcUserService) throws Exception {
         http
-                .authorizeHttpRequests(authorize -> authorize.anyRequest().hasRole("USER"))
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/css/**", "/webjars/**", "/favicon.ico").permitAll()
+                        .anyRequest().hasRole("USER"))
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.oidcUserService(customOidcUserService))
                         .defaultSuccessUrl("/", true))
