@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -90,6 +91,16 @@ class IngestControllerIntegrationTest {
                 .andExpect(status().isForbidden());
 
         assertFalse(auctionRepository.findAll().stream().anyMatch(a -> "IB-12345".equals(a.itemId())));
+    }
+
+    @Test
+    void postingAnInvalidAuctionItemReturnsAProblemDetail() throws Exception {
+        mockMvc.perform(post("/api/ingest")
+                        .header(ApiKeyAuthenticationFilter.API_KEY_HEADER, ingestionSecurityProperties.apiKey())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
     }
 
 }
