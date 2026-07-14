@@ -340,6 +340,10 @@ a {
     margin-left: 0;
 }
 
+.form-spaced {
+    margin-top: 0.75rem;
+}
+
 /* ---- empty state ---------------------------------------------------------- */
 
 .empty-state {

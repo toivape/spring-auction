@@ -57,6 +57,13 @@ public class AuctionController {
         return "redirect:/auctions/" + id;
     }
 
+    @PostMapping("/auctions/{id}/bids/withdraw")
+    public String withdrawBid(@PathVariable Long id, @AuthenticationPrincipal OidcUser principal) {
+        requireAuthenticated(principal);
+        bidService.withdrawBid(id, principal.getSubject());
+        return "redirect:/auctions/" + id;
+    }
+
     private void requireAuthenticated(OidcUser principal) {
         if (principal == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);

@@ -198,4 +198,73 @@ class AuctionControllerIntegrationTest {
                 .andExpect(status().isConflict());
     }
 
+    @Test
+    void withdrawingABidMarksItWithdrawn() throws Exception {
+        Auction auction = activeAuction("IB-D1", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
+        mockMvc.perform(post("/auctions/{id}/bids", auction.id())
+                        .with(asBidder())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("amount", "150.00"))
+                .andExpect(status().is3xxRedirection());
+
+        mockMvc.perform(post("/auctions/{id}/bids/withdraw", auction.id())
+                        .with(asBidder())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auctions/" + auction.id()));
+
+        User bidder = userRepository.findByGoogleSubjectId(SUBJECT).orElseThrow();
+        var bid = bidRepository.findById(new BidId(auction.id(), bidder.id())).orElseThrow();
+        assertTrue(bid.isWithdrawn());
+    }
+
+    @Test
+    void withdrawnBidNoLongerShowsAsMyCurrentBid() throws Exception {
+        Auction auction = activeAuction("IB-D2", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
+        mockMvc.perform(post("/auctions/{id}/bids", auction.id())
+                        .with(asBidder())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("amount", "150.00"))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(post("/auctions/{id}/bids/withdraw", auction.id())
+                        .with(asBidder())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        mockMvc.perform(get("/auctions/{id}", auction.id()).with(asBidder()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("You haven't placed a bid yet")));
+    }
+
+    @Test
+    void withdrawingWithNoBidReturnsNotFound() throws Exception {
+        Auction auction = activeAuction("IB-D3", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
+
+        mockMvc.perform(post("/auctions/{id}/bids/withdraw", auction.id())
+                        .with(asBidder())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void withdrawingAfterTheAuctionHasEndedConflicts() throws Exception {
+        Auction auction = activeAuction("IB-D4", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(2));
+        mockMvc.perform(post("/auctions/{id}/bids", auction.id())
+                        .with(asBidder())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("amount", "150.00"))
+                .andExpect(status().is3xxRedirection());
+
+        Auction ended = auctionRepository.save(new Auction(
+                auction.id(), auction.itemId(), auction.title(), auction.description(), auction.category(),
+                auction.auctionType(), auction.lifecycleStatus(), auction.startPrice(), auction.currentValue(),
+                auction.currency(), auction.startsAt(), Instant.now().minusSeconds(1), auction.comment(),
+                auction.serialNumber(), auction.createdAt()));
+
+        mockMvc.perform(post("/auctions/{id}/bids/withdraw", ended.id())
+                        .with(asBidder())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().isConflict());
+    }
+
 }

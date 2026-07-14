@@ -38,26 +38,19 @@ public class BidService {
 
     public Optional<Bid> findMyBid(Long auctionId, String googleSubjectId) {
         User user = currentUser(googleSubjectId);
-        return bidRepository.findById(new BidId(auctionId, user.id()));
+        return bidRepository.findById(new BidId(auctionId, user.id())).filter(bid -> !bid.isWithdrawn());
     }
 
     public Map<Long, Bid> findMyBidsByAuctionId(String googleSubjectId) {
         User user = currentUser(googleSubjectId);
         return bidRepository.findByUserId(user.id()).stream()
+                .filter(bid -> !bid.isWithdrawn())
                 .collect(Collectors.toMap(bid -> bid.id().auctionId(), Function.identity()));
     }
 
     public void placeBid(Long auctionId, String googleSubjectId, BigDecimal amount) {
         User user = currentUser(googleSubjectId);
-        Auction auction = auctionRepository.findById(auctionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Auction not found: " + auctionId));
-
-        Instant now = Instant.now(clock);
-        if (auction.lifecycleStatus() != AuctionLifecycleStatus.ACTIVE
-                || auction.startsAt() == null || auction.endsAt() == null
-                || now.isBefore(auction.startsAt()) || now.isAfter(auction.endsAt())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Auction is not open for bidding");
-        }
+        Auction auction = requireOpenForBidding(auctionId);
         if (amount.compareTo(auction.startPrice()) < 0) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Bid must be at least the start price of " + auction.startPrice());
@@ -75,6 +68,32 @@ public class BidService {
                 .param("userId", user.id())
                 .param("amount", amount)
                 .update();
+    }
+
+    public void withdrawBid(Long auctionId, String googleSubjectId) {
+        User user = currentUser(googleSubjectId);
+        requireOpenForBidding(auctionId);
+        bidRepository.findById(new BidId(auctionId, user.id()))
+                .filter(bid -> !bid.isWithdrawn())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No active bid to withdraw"));
+
+        jdbcClient.sql("UPDATE bid SET is_withdrawn = true, updated_at = now() WHERE auction_id = :auctionId AND user_id = :userId")
+                .param("auctionId", auctionId)
+                .param("userId", user.id())
+                .update();
+    }
+
+    private Auction requireOpenForBidding(Long auctionId) {
+        Auction auction = auctionRepository.findById(auctionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Auction not found: " + auctionId));
+
+        Instant now = Instant.now(clock);
+        if (auction.lifecycleStatus() != AuctionLifecycleStatus.ACTIVE
+                || auction.startsAt() == null || auction.endsAt() == null
+                || now.isBefore(auction.startsAt()) || now.isAfter(auction.endsAt())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Auction is not open for bidding");
+        }
+        return auction;
     }
 
     private User currentUser(String googleSubjectId) {

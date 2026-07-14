@@ -51,6 +51,9 @@
                 </div>
                 <button type="submit" class="btn-primary" th:text="${myBid != null ? 'Update bid' : 'Place bid'}"></button>
             </form>
+            <form th:if="${isOpen and myBid != null}" th:action="@{/auctions/{id}/bids/withdraw(id=${auction.id})}" method="post" class="form-spaced">
+                <button type="submit" class="btn-ghost btn-archive">Withdraw bid</button>
+            </form>
         </div>
     </main>
 </div>
