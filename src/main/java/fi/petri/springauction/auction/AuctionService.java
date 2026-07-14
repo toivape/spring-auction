@@ -27,6 +27,10 @@ public class AuctionService {
         return auctionRepository.findAll();
     }
 
+    public List<Auction> findActive() {
+        return auctionRepository.findByLifecycleStatus(AuctionLifecycleStatus.ACTIVE);
+    }
+
     public Auction findById(Long auctionId) {
         return auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Auction not found: " + auctionId));

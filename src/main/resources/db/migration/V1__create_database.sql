@@ -95,3 +95,24 @@ VALUES
     ('TEST-00004', 'Test auction 4', 'Seeded test auction 4', 'test', 'DRAFT', 400.00, 400.00, 'EUR'),
     ('TEST-00005', 'Test auction 5', 'Seeded test auction 5', 'test', 'DRAFT', 500.00, 500.00, 'EUR')
 ON CONFLICT (item_id) DO NOTHING;
+
+-- Active auctions: window opened yesterday at 00:00 UTC, closes 30 days later at 23:59:59 UTC.
+-- Anchored to UTC explicitly (not CURRENT_DATE) so the window doesn't shift with the connecting session's timezone.
+INSERT INTO auction (item_id, title, description, category, lifecycle_status, start_price, current_value, currency, starts_at, ends_at)
+VALUES
+    ('TEST-ACTIVE-00001', 'Active test auction 1', 'Seeded active test auction 1', 'test', 'ACTIVE', 100.00, 100.00, 'EUR',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
+    ('TEST-ACTIVE-00002', 'Active test auction 2', 'Seeded active test auction 2', 'test', 'ACTIVE', 200.00, 200.00, 'EUR',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
+    ('TEST-ACTIVE-00003', 'Active test auction 3', 'Seeded active test auction 3', 'test', 'ACTIVE', 300.00, 300.00, 'EUR',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
+    ('TEST-ACTIVE-00004', 'Active test auction 4', 'Seeded active test auction 4', 'test', 'ACTIVE', 400.00, 400.00, 'EUR',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
+    ('TEST-ACTIVE-00005', 'Active test auction 5', 'Seeded active test auction 5', 'test', 'ACTIVE', 500.00, 500.00, 'EUR',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC')
+ON CONFLICT (item_id) DO NOTHING;
