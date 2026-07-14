@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title th:text="${(auction.title != null ? auction.title : auction.itemId)} + ' — Manifest'"></title>
     <link rel="stylesheet" th:href="@{/css/admin.css}">
+    <link rel="stylesheet" th:href="@{/css/auction.css}">
 </head>
 <body>
 <div class="shell">
@@ -17,45 +18,64 @@
             </form>
         </div>
     </header>
-    <main class="shell-main shell-main--center"
+    <main class="shell-main"
           th:with="isOpen=${auction.lifecycleStatus.name() == 'ACTIVE'
                             and auction.startsAt != null and auction.endsAt != null
                             and !T(java.time.Instant).now().isBefore(auction.startsAt)
                             and !T(java.time.Instant).now().isAfter(auction.endsAt)}">
-        <div class="entry-card panel">
+        <div class="auction-detail">
             <a class="back-link" th:href="@{/}">&larr; Back to auctions</a>
-            <h1 class="panel-title" th:text="${auction.title != null ? auction.title : auction.itemId}"></h1>
-            <p class="entry-card-sub" th:text="${auction.description}"></p>
 
-            <p class="field-hint">
-                Start price: <span th:text="${#numbers.formatDecimal(auction.startPrice, 1, 2)} + ' ' + ${auction.currency}"></span><br>
-                Closes: <span th:text="${#temporals.format(auction.endsAt, 'dd.MM.yyyy HH:mm')}"></span>
-            </p>
-
-            <p class="notice notice--info" th:if="${myBid != null}">
-                Your current bid: <span th:text="${#numbers.formatDecimal(myBid.amount, 1, 2)} + ' ' + ${auction.currency}"></span>
-            </p>
-            <p class="notice notice--info" th:if="${myBid == null and isOpen}">
-                You haven't placed a bid yet.
-            </p>
-            <p class="notice notice--error" th:unless="${isOpen}">
-                Bidding is not open for this auction.
-            </p>
-
-            <form th:if="${isOpen}" th:action="@{/auctions/{id}/bids(id=${auction.id})}" method="post">
-                <div class="field">
-                    <label for="amount">Your bid</label>
-                    <input type="number" id="amount" name="amount" step="0.01"
-                           th:min="${auction.startPrice}"
-                           th:value="${myBid != null ? myBid.amount : auction.startPrice}" required>
+            <div class="auction-card">
+                <div class="asset-tag-row">
+                    <span th:text="${auction.itemId}"></span>
+                    <span class="category-chip" th:text="${auction.category}"></span>
                 </div>
-                <button type="submit" class="btn-primary" th:text="${myBid != null ? 'Update bid' : 'Place bid'}"></button>
-            </form>
-            <form th:if="${isOpen and myBid != null}" th:action="@{/auctions/{id}/bids/withdraw(id=${auction.id})}" method="post" class="form-spaced">
-                <button type="submit" class="btn-ghost btn-archive">Withdraw bid</button>
-            </form>
+                <div class="tag-perforation"></div>
+                <h1 class="auction-card-title" th:text="${auction.title != null ? auction.title : auction.itemId}"></h1>
+                <p class="auction-detail-desc" th:text="${auction.description}"></p>
+                <div class="auction-card-foot">
+                    <p class="auction-card-price">
+                        from <span th:text="${#numbers.formatDecimal(auction.startPrice, 1, 2)} + ' ' + ${auction.currency}"></span>
+                    </p>
+                    <div class="dispatch">
+                        <span class="dispatch-label">Closes</span>
+                        <span class="dispatch-clock" th:attr="data-ends-at=${auction.endsAt}">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bid-panel">
+                <h2 class="bid-panel-title">Sealed bid</h2>
+
+                <p class="notice notice--info" th:if="${myBid != null}">
+                    Your sealed bid: <strong th:text="${#numbers.formatDecimal(myBid.amount, 1, 2)} + ' ' + ${auction.currency}"></strong>
+                </p>
+                <p class="notice notice--info" th:if="${myBid == null and isOpen}">
+                    You haven't placed a bid yet.
+                </p>
+                <p class="notice notice--error" th:unless="${isOpen}">
+                    Bidding is not open for this auction.
+                </p>
+
+                <form th:if="${isOpen}" th:action="@{/auctions/{id}/bids(id=${auction.id})}" method="post">
+                    <div class="field">
+                        <label for="amount">Your bid</label>
+                        <input type="number" id="amount" name="amount" step="0.01"
+                               th:min="${auction.startPrice}"
+                               th:value="${myBid != null ? myBid.amount : auction.startPrice}" required>
+                    </div>
+                    <button type="submit" class="btn-primary" th:text="${myBid != null ? 'Update bid' : 'Place bid'}"></button>
+                </form>
+                <form th:if="${isOpen and myBid != null}" th:action="@{/auctions/{id}/bids/withdraw(id=${auction.id})}" method="post" class="form-spaced">
+                    <button type="submit" class="btn-ghost btn-archive">Withdraw bid</button>
+                </form>
+
+                <p class="bid-panel-note" th:if="${isOpen}">Sealed: no other bidder can see this until the auction closes.</p>
+            </div>
         </div>
     </main>
 </div>
+<script th:src="@{/js/dispatch-clock.js}"></script>
 </body>
 </html>

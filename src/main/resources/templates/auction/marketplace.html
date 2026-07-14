@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Auctions — Manifest</title>
     <link rel="stylesheet" th:href="@{/css/admin.css}">
+    <link rel="stylesheet" th:href="@{/css/auction.css}">
 </head>
 <body>
 <div class="shell">
@@ -19,43 +20,38 @@
     </header>
     <main class="shell-main">
         <div class="shell-container">
-            <div class="panel">
-                <div class="panel-header">
-                    <h1 class="panel-title">Active auctions</h1>
-                    <span class="panel-count" th:text="${#lists.size(auctions)} + ' auction' + (${#lists.size(auctions)} == 1 ? '' : 's')"></span>
-                </div>
+            <div class="auction-list-header">
+                <h1 class="auction-list-title">Open for bidding</h1>
+                <span class="auction-count" th:text="${#lists.size(auctions)} + ' auction' + (${#lists.size(auctions)} == 1 ? '' : 's')"></span>
+            </div>
 
-                <p class="empty-state" th:if="${#lists.isEmpty(auctions)}">No active auctions right now. Check back soon.</p>
+            <p class="empty-state" th:if="${#lists.isEmpty(auctions)}">No auctions are open for bidding right now. Check back soon.</p>
 
-                <div class="table-scroll" th:unless="${#lists.isEmpty(auctions)}">
-                    <table class="manifest-table">
-                        <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>Category</th>
-                            <th>Start price</th>
-                            <th>Your bid</th>
-                            <th>Closes</th>
-                            <th></th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <tr th:each="auction : ${auctions}" th:with="myBid=${myBids.get(auction.id)}">
-                            <td class="cell-title" th:text="${auction.title != null ? auction.title : auction.itemId}"></td>
-                            <td th:text="${auction.category}"></td>
-                            <td class="cell-mono" th:text="${#numbers.formatDecimal(auction.startPrice, 1, 2)} + ' ' + ${auction.currency}"></td>
-                            <td class="cell-mono" th:text="${myBid != null ? #numbers.formatDecimal(myBid.amount, 1, 2) + ' ' + auction.currency : '—'}"></td>
-                            <td class="cell-mono cell-muted" th:text="${#temporals.format(auction.endsAt, 'dd.MM.yyyy HH:mm')}"></td>
-                            <td class="cell-actions">
-                                <a th:href="@{/auctions/{id}(id=${auction.id})}" class="btn-ghost action-inline">View &amp; bid</a>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <div class="auction-grid" th:unless="${#lists.isEmpty(auctions)}">
+                <a class="auction-card" th:each="auction : ${auctions}" th:with="myBid=${myBids.get(auction.id)}"
+                   th:href="@{/auctions/{id}(id=${auction.id})}">
+                    <div class="asset-tag-row">
+                        <span th:text="${auction.itemId}"></span>
+                        <span class="category-chip" th:text="${auction.category}"></span>
+                    </div>
+                    <div class="tag-perforation"></div>
+                    <h2 class="auction-card-title" th:text="${auction.title != null ? auction.title : auction.itemId}"></h2>
+                    <p class="auction-card-price">
+                        from <span th:text="${#numbers.formatDecimal(auction.startPrice, 1, 2)} + ' ' + ${auction.currency}"></span>
+                    </p>
+                    <div class="auction-card-foot">
+                        <div class="dispatch">
+                            <span class="dispatch-label">Closes</span>
+                            <span class="dispatch-clock" th:attr="data-ends-at=${auction.endsAt}">—</span>
+                        </div>
+                        <span class="sealed-badge" th:if="${myBid != null}"
+                              th:text="'Your bid: ' + ${#numbers.formatDecimal(myBid.amount, 1, 2)} + ' ' + ${auction.currency}"></span>
+                    </div>
+                </a>
             </div>
         </div>
     </main>
 </div>
+<script th:src="@{/js/dispatch-clock.js}"></script>
 </body>
 </html>
