@@ -1,13 +1,19 @@
 package fi.petri.springauction.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.config.oauth2.client.CommonOAuth2Provider;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -46,6 +52,33 @@ public class SecurityConfig {
                 .logout(logout -> logout
                         .logoutUrl("/admin/logout")
                         .logoutSuccessUrl("/admin/login?logout")
+                        .permitAll());
+        return http.build();
+    }
+
+    @Bean
+    @Conditional(GoogleOAuthConfiguredCondition.class)
+    public ClientRegistrationRepository clientRegistrationRepository(
+            @Value("${app.google.client-id}") String googleClientId,
+            @Value("${app.google.client-secret}") String googleClientSecret) {
+        ClientRegistration google = CommonOAuth2Provider.GOOGLE.getBuilder("google")
+                .clientId(googleClientId)
+                .clientSecret(googleClientSecret)
+                .build();
+        return new InMemoryClientRegistrationRepository(google);
+    }
+
+    @Bean
+    @Order(3)
+    @Conditional(GoogleOAuthConfiguredCondition.class)
+    public SecurityFilterChain appChain(HttpSecurity http, CustomOidcUserService customOidcUserService) throws Exception {
+        http
+                .authorizeHttpRequests(authorize -> authorize.anyRequest().hasRole("USER"))
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo.oidcUserService(customOidcUserService))
+                        .defaultSuccessUrl("/", true))
+                .logout(logout -> logout
+                        .logoutSuccessUrl("/")
                         .permitAll());
         return http.build();
     }

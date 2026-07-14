@@ -8,4 +8,6 @@ public interface UserRepository extends ListCrudRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
 
+    Optional<User> findByGoogleSubjectId(String googleSubjectId);
+
 }
