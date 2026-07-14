@@ -2,6 +2,8 @@
 
 Project-specific notes for spring-auction. See PLAN.md (parent directory) for the full design/feature plan.
 
+@.claude/CLAUDE.local.md
+
 ## Repo layout
 - This directory is both the git repo root and the Maven project root. Always run `./mvnw` etc. from here.
 - `PLAN.md` lives one level up, in the parent directory — it is NOT inside this git repo and is not version-controlled here. It's the living design doc: update it in the same turn a decision or implementation diverges from what it says.

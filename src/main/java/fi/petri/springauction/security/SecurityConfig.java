@@ -41,7 +41,11 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/admin/login")
                         .loginProcessingUrl("/admin/login")
-                        .defaultSuccessUrl("/admin", true)
+                        .defaultSuccessUrl("/admin/auctions", true)
+                        .permitAll())
+                .logout(logout -> logout
+                        .logoutUrl("/admin/logout")
+                        .logoutSuccessUrl("/admin/login?logout")
                         .permitAll());
         return http.build();
     }

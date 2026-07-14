@@ -3,24 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Admin Login</title>
-    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.7/css/bootstrap.min.css}">
+    <title>Sign in — Manifest</title>
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
 </head>
-<body class="bg-light">
-<div class="container d-flex justify-content-center align-items-center" style="min-height: 100vh;">
-    <div class="card shadow-sm" style="width: 100%; max-width: 24rem;">
-        <div class="card-body p-4">
-            <h1 class="h4 mb-4 text-center">Admin Login</h1>
+<body>
+<div class="shell">
+    <div class="shell-main shell-main--center">
+        <div class="entry-card panel">
+            <h1 class="panel-title">Manifest</h1>
+            <p class="entry-card-sub">Auction Admin — sign in to manage auctions</p>
+
+            <p class="notice notice--error" th:if="${param.error}">Wrong email or password. Try again.</p>
+            <p class="notice notice--info" th:if="${param.logout}">Signed out.</p>
+
             <form th:action="@{/admin/login}" method="post">
-                <div class="mb-3">
-                    <label for="username" class="form-label">Email</label>
-                    <input type="text" id="username" name="username" autocomplete="username" class="form-control">
+                <div class="field">
+                    <label for="username">Email</label>
+                    <input type="text" id="username" name="username" autocomplete="username">
                 </div>
-                <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" id="password" name="password" autocomplete="current-password" class="form-control">
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" autocomplete="current-password">
                 </div>
-                <button type="submit" class="btn btn-primary w-100">Log in</button>
+                <button type="submit" class="btn-primary">Sign in</button>
             </form>
         </div>
     </div>
