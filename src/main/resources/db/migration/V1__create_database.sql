@@ -23,7 +23,7 @@ CREATE TABLE auction
     description      TEXT           NOT NULL,
     category         TEXT           NOT NULL,
     auction_type     TEXT CHECK (auction_type IN ('FIRST_PRICE', 'SECOND_PRICE')), -- filled in by admin while editing the draft
-    lifecycle_status TEXT           NOT NULL CHECK (lifecycle_status IN ('DRAFT', 'ACTIVE', 'UNSOLD', 'ARCHIVED')),
+    lifecycle_status TEXT           NOT NULL CHECK (lifecycle_status IN ('DRAFT', 'ACTIVE', 'UNSOLD', 'CANCELLED', 'ARCHIVED')),
     start_price      NUMERIC(12, 2) NOT NULL,
     current_value    NUMERIC(12, 2) NOT NULL,
     currency         TEXT           NOT NULL DEFAULT 'EUR',

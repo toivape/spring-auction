@@ -68,6 +68,13 @@ class AdminAuctionControllerIntegrationTest {
                 "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(3600), null, null, Instant.now()));
     }
 
+    private Auction cancelledAuction(String itemId) {
+        return auctionRepository.save(new Auction(
+                null, itemId, "Cancelled auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                AuctionLifecycleStatus.CANCELLED, BigDecimal.valueOf(1000), BigDecimal.valueOf(450),
+                "EUR", Instant.now().minusSeconds(7200), Instant.now().plusSeconds(3600), null, null, Instant.now()));
+    }
+
     private MockHttpSession loginAsAdmin() throws Exception {
         MvcResult result = mockMvc.perform(formLogin("/admin/login")
                         .user(adminBootstrapProperties.email())
@@ -312,6 +319,85 @@ class AdminAuctionControllerIntegrationTest {
 
         Auction reloaded = auctionRepository.findById(auction.id()).orElseThrow();
         assertEquals(AuctionLifecycleStatus.UNSOLD, reloaded.lifecycleStatus());
+    }
+
+    @Test
+    void adminCanCancelADraftAuction() throws Exception {
+        Auction auction = draftAuction();
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions/{id}/cancel", auction.id())
+                        .session(session)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/auctions"));
+
+        Auction reloaded = auctionRepository.findById(auction.id()).orElseThrow();
+        assertEquals(AuctionLifecycleStatus.CANCELLED, reloaded.lifecycleStatus());
+    }
+
+    @Test
+    void adminCanCancelAnActiveAuction() throws Exception {
+        Auction auction = activeAuction("IB-30303", Instant.now().plusSeconds(3600));
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions/{id}/cancel", auction.id())
+                        .session(session)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/auctions"));
+
+        Auction reloaded = auctionRepository.findById(auction.id()).orElseThrow();
+        assertEquals(AuctionLifecycleStatus.CANCELLED, reloaded.lifecycleStatus());
+    }
+
+    @Test
+    void cancellingAnUnsoldAuctionConflicts() throws Exception {
+        Auction auction = unsoldAuction("IB-40404");
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions/{id}/cancel", auction.id())
+                        .session(session)
+                        .with(csrf()))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void cancellingAnAlreadyCancelledAuctionConflicts() throws Exception {
+        Auction auction = cancelledAuction("IB-50505");
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions/{id}/cancel", auction.id())
+                        .session(session)
+                        .with(csrf()))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void cancellingWithoutLoggingInIsRejected() throws Exception {
+        Auction auction = draftAuction();
+
+        mockMvc.perform(post("/admin/auctions/{id}/cancel", auction.id())
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        Auction reloaded = auctionRepository.findById(auction.id()).orElseThrow();
+        assertEquals(AuctionLifecycleStatus.DRAFT, reloaded.lifecycleStatus());
+    }
+
+    @Test
+    void adminCanArchiveACancelledAuction() throws Exception {
+        Auction auction = cancelledAuction("IB-60606");
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions/{id}/archive", auction.id())
+                        .session(session)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/auctions"));
+
+        Auction reloaded = auctionRepository.findById(auction.id()).orElseThrow();
+        assertEquals(AuctionLifecycleStatus.ARCHIVED, reloaded.lifecycleStatus());
     }
 
 }

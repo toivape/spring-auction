@@ -20,6 +20,7 @@
     --stamp-green: #2c5f45;
     --stamp-amber: #8f5417;
     --stamp-red: #7c332b;
+    --stamp-grey: #55524a;
     --accent-teal: #3f7f80;
 
     --font-display: -apple-system, "Helvetica Neue", Arial, sans-serif;
@@ -259,6 +260,7 @@ a {
 .stamp--draft { color: var(--stamp-amber); }
 .stamp--active { color: var(--stamp-green); }
 .stamp--unsold { color: var(--accent-teal); }
+.stamp--cancelled { color: var(--stamp-grey); }
 .stamp--archived { color: var(--stamp-red); }
 
 @keyframes stamp-down {

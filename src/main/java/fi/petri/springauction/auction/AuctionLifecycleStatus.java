@@ -4,5 +4,6 @@ public enum AuctionLifecycleStatus {
     DRAFT,
     ACTIVE,
     UNSOLD,
+    CANCELLED,
     ARCHIVED
 }

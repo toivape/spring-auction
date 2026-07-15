@@ -47,6 +47,12 @@ public class AdminAuctionController {
         return "redirect:/admin/auctions";
     }
 
+    @PostMapping("/admin/auctions/{id}/cancel")
+    public String cancel(@PathVariable Long id) {
+        auctionService.cancel(id);
+        return "redirect:/admin/auctions";
+    }
+
     @GetMapping("/admin/auctions/{id}/extend")
     public String extendForm(@PathVariable Long id, Model model) {
         model.addAttribute("auction", auctionService.findById(id));

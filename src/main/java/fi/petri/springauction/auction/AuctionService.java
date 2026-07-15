@@ -58,9 +58,10 @@ public class AuctionService {
     public void archive(Long auctionId) {
         Auction auction = findById(auctionId);
 
-        if (auction.lifecycleStatus() != AuctionLifecycleStatus.UNSOLD) {
+        if (auction.lifecycleStatus() != AuctionLifecycleStatus.UNSOLD
+                && auction.lifecycleStatus() != AuctionLifecycleStatus.CANCELLED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Auction " + auctionId + " is not in UNSOLD status");
+                    "Auction " + auctionId + " is not in UNSOLD or CANCELLED status");
         }
 
         auctionRepository.save(new Auction(
@@ -85,6 +86,23 @@ public class AuctionService {
                 auction.id(), auction.itemId(), auction.title(), auction.description(), auction.category(),
                 auction.auctionType(), AuctionLifecycleStatus.ACTIVE, auction.startPrice(), auction.currentValue(),
                 auction.currency(), auction.startsAt(), resolvedEndsAt, auction.comment(), auction.serialNumber(),
+                auction.createdAt()
+        ));
+    }
+
+    public void cancel(Long auctionId) {
+        Auction auction = findById(auctionId);
+
+        if (auction.lifecycleStatus() != AuctionLifecycleStatus.DRAFT
+                && auction.lifecycleStatus() != AuctionLifecycleStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Auction " + auctionId + " is not in DRAFT or ACTIVE status");
+        }
+
+        auctionRepository.save(new Auction(
+                auction.id(), auction.itemId(), auction.title(), auction.description(), auction.category(),
+                auction.auctionType(), AuctionLifecycleStatus.CANCELLED, auction.startPrice(), auction.currentValue(),
+                auction.currency(), auction.startsAt(), auction.endsAt(), auction.comment(), auction.serialNumber(),
                 auction.createdAt()
         ));
     }

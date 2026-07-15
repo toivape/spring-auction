@@ -56,7 +56,11 @@
                                 <a th:if="${status == 'UNSOLD'}"
                                    th:href="@{/admin/auctions/{id}/extend(id=${auction.id})}"
                                    class="btn-ghost btn-activate action-inline">Extend</a>
-                                <form th:if="${status == 'UNSOLD'}"
+                                <form th:if="${status == 'DRAFT' or status == 'ACTIVE'}"
+                                      th:action="@{/admin/auctions/{id}/cancel(id=${auction.id})}" method="post" class="action-inline">
+                                    <button type="submit" class="btn-ghost btn-archive">Cancel</button>
+                                </form>
+                                <form th:if="${status == 'UNSOLD' or status == 'CANCELLED'}"
                                       th:action="@{/admin/auctions/{id}/archive(id=${auction.id})}" method="post" class="action-inline">
                                     <button type="submit" class="btn-ghost btn-archive">Archive</button>
                                 </form>
