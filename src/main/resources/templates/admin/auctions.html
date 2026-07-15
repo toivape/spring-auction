@@ -53,7 +53,10 @@
                                 <a th:if="${status == 'DRAFT'}"
                                    th:href="@{/admin/auctions/{id}/activate(id=${auction.id})}"
                                    class="btn-ghost btn-activate action-inline">Activate</a>
-                                <form th:if="${status == 'ACTIVE' and auction.endsAt != null and auction.endsAt.isBefore(T(java.time.Instant).now())}"
+                                <a th:if="${status == 'UNSOLD'}"
+                                   th:href="@{/admin/auctions/{id}/extend(id=${auction.id})}"
+                                   class="btn-ghost btn-activate action-inline">Extend</a>
+                                <form th:if="${status == 'UNSOLD'}"
                                       th:action="@{/admin/auctions/{id}/archive(id=${auction.id})}" method="post" class="action-inline">
                                     <button type="submit" class="btn-ghost btn-archive">Archive</button>
                                 </form>

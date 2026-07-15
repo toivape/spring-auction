@@ -47,6 +47,18 @@ public class AdminAuctionController {
         return "redirect:/admin/auctions";
     }
 
+    @GetMapping("/admin/auctions/{id}/extend")
+    public String extendForm(@PathVariable Long id, Model model) {
+        model.addAttribute("auction", auctionService.findById(id));
+        return "admin/extend-auction";
+    }
+
+    @PostMapping("/admin/auctions/{id}/extend")
+    public String extend(@PathVariable Long id, @RequestParam(required = false) String endsAt) {
+        auctionService.extend(id, parseDateTime(endsAt));
+        return "redirect:/admin/auctions";
+    }
+
     private Instant parseDateTime(String value) {
         if (value == null || value.isBlank()) {
             return null;

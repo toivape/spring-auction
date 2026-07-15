@@ -58,17 +58,9 @@ public class AuctionService {
     public void archive(Long auctionId) {
         Auction auction = findById(auctionId);
 
-        if (auction.lifecycleStatus() != AuctionLifecycleStatus.ACTIVE) {
+        if (auction.lifecycleStatus() != AuctionLifecycleStatus.UNSOLD) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Auction " + auctionId + " is not in ACTIVE status");
-        }
-        if (auction.endsAt() == null || auction.endsAt().isAfter(Instant.now(clock))) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Auction " + auctionId + " has not ended yet");
-        }
-        if (bidRepository.existsActiveBidForAuction(auctionId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Auction " + auctionId + " has bids, cannot archive");
+                    "Auction " + auctionId + " is not in UNSOLD status");
         }
 
         auctionRepository.save(new Auction(
@@ -77,6 +69,39 @@ public class AuctionService {
                 auction.currency(), auction.startsAt(), auction.endsAt(), auction.comment(), auction.serialNumber(),
                 auction.createdAt()
         ));
+    }
+
+    public void extend(Long auctionId, Instant endsAt) {
+        Auction auction = findById(auctionId);
+
+        if (auction.lifecycleStatus() != AuctionLifecycleStatus.UNSOLD) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Auction " + auctionId + " is not in UNSOLD status");
+        }
+
+        Instant resolvedEndsAt = endsAt != null ? endsAt : Instant.now(clock).plus(Duration.ofDays(30));
+
+        auctionRepository.save(new Auction(
+                auction.id(), auction.itemId(), auction.title(), auction.description(), auction.category(),
+                auction.auctionType(), AuctionLifecycleStatus.ACTIVE, auction.startPrice(), auction.currentValue(),
+                auction.currency(), auction.startsAt(), resolvedEndsAt, auction.comment(), auction.serialNumber(),
+                auction.createdAt()
+        ));
+    }
+
+    public void finalizeUnsold() {
+        Instant now = Instant.now(clock);
+        for (Auction auction : auctionRepository.findByLifecycleStatusAndEndsAtBefore(AuctionLifecycleStatus.ACTIVE, now)) {
+            if (bidRepository.existsActiveBidForAuction(auction.id())) {
+                continue;
+            }
+            auctionRepository.save(new Auction(
+                    auction.id(), auction.itemId(), auction.title(), auction.description(), auction.category(),
+                    auction.auctionType(), AuctionLifecycleStatus.UNSOLD, auction.startPrice(), auction.currentValue(),
+                    auction.currency(), auction.startsAt(), auction.endsAt(), auction.comment(), auction.serialNumber(),
+                    auction.createdAt()
+            ));
+        }
     }
 
 }

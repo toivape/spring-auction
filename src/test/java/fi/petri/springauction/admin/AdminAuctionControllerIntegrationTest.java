@@ -5,15 +5,11 @@ import fi.petri.springauction.auction.Auction;
 import fi.petri.springauction.auction.AuctionLifecycleStatus;
 import fi.petri.springauction.auction.AuctionRepository;
 import fi.petri.springauction.security.AdminBootstrapProperties;
-import fi.petri.springauction.user.User;
-import fi.petri.springauction.user.UserRepository;
-import fi.petri.springauction.user.UserRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -49,12 +45,6 @@ class AdminAuctionControllerIntegrationTest {
     AuctionRepository auctionRepository;
 
     @Autowired
-    UserRepository userRepository;
-
-    @Autowired
-    JdbcClient jdbcClient;
-
-    @Autowired
     AdminBootstrapProperties adminBootstrapProperties;
 
     private Auction draftAuction() {
@@ -71,13 +61,11 @@ class AdminAuctionControllerIntegrationTest {
                 "EUR", Instant.now().minusSeconds(3600), endsAt, null, null, Instant.now()));
     }
 
-    private void placeBidOn(Long auctionId) {
-        User bidder = userRepository.save(new User(null, null, "bidder@example.com", "Bidder", UserRole.USER, Instant.now()));
-        jdbcClient.sql("INSERT INTO bid (auction_id, user_id, amount, is_withdrawn) VALUES (:auctionId, :userId, :amount, false)")
-                .param("auctionId", auctionId)
-                .param("userId", bidder.id())
-                .param("amount", BigDecimal.valueOf(500))
-                .update();
+    private Auction unsoldAuction(String itemId) {
+        return auctionRepository.save(new Auction(
+                null, itemId, "Unsold auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                AuctionLifecycleStatus.UNSOLD, BigDecimal.valueOf(1000), BigDecimal.valueOf(450),
+                "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(3600), null, null, Instant.now()));
     }
 
     private MockHttpSession loginAsAdmin() throws Exception {
@@ -208,8 +196,8 @@ class AdminAuctionControllerIntegrationTest {
     }
 
     @Test
-    void adminCanArchiveAnEndedAuctionWithNoBids() throws Exception {
-        Auction auction = activeAuction("IB-77777", Instant.now().minusSeconds(60));
+    void adminCanArchiveAnUnsoldAuction() throws Exception {
+        Auction auction = unsoldAuction("IB-77777");
         MockHttpSession session = loginAsAdmin();
 
         mockMvc.perform(post("/admin/auctions/{id}/archive", auction.id())
@@ -223,8 +211,8 @@ class AdminAuctionControllerIntegrationTest {
     }
 
     @Test
-    void archivingAnAuctionThatHasNotEndedYetConflicts() throws Exception {
-        Auction auction = activeAuction("IB-66666", Instant.now().plusSeconds(3600));
+    void archivingAnActiveAuctionConflicts() throws Exception {
+        Auction auction = activeAuction("IB-66666", Instant.now().minusSeconds(60));
         MockHttpSession session = loginAsAdmin();
 
         mockMvc.perform(post("/admin/auctions/{id}/archive", auction.id())
@@ -245,27 +233,85 @@ class AdminAuctionControllerIntegrationTest {
     }
 
     @Test
-    void archivingAnEndedAuctionWithBidsConflicts() throws Exception {
-        Auction auction = activeAuction("IB-55555", Instant.now().minusSeconds(60));
-        placeBidOn(auction.id());
-        MockHttpSession session = loginAsAdmin();
-
-        mockMvc.perform(post("/admin/auctions/{id}/archive", auction.id())
-                        .session(session)
-                        .with(csrf()))
-                .andExpect(status().isConflict());
-    }
-
-    @Test
     void archivingWithoutLoggingInIsRejected() throws Exception {
-        Auction auction = activeAuction("IB-44444", Instant.now().minusSeconds(60));
+        Auction auction = unsoldAuction("IB-44444");
 
         mockMvc.perform(post("/admin/auctions/{id}/archive", auction.id())
                         .with(csrf()))
                 .andExpect(status().is3xxRedirection());
 
         Auction reloaded = auctionRepository.findById(auction.id()).orElseThrow();
+        assertEquals(AuctionLifecycleStatus.UNSOLD, reloaded.lifecycleStatus());
+    }
+
+    @Test
+    void adminCanViewTheExtendForm() throws Exception {
+        Auction auction = unsoldAuction("IB-33333");
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(get("/admin/auctions/{id}/extend", auction.id()).session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(auction.itemId())));
+    }
+
+    @Test
+    void extendingAnUnsoldAuctionReactivatesItWithNewEndDate() throws Exception {
+        Auction auction = unsoldAuction("IB-22222");
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions/{id}/extend", auction.id())
+                        .session(session)
+                        .with(csrf())
+                        .param("endsAt", "2026-09-01T10:00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/auctions"));
+
+        Auction reloaded = auctionRepository.findById(auction.id()).orElseThrow();
         assertEquals(AuctionLifecycleStatus.ACTIVE, reloaded.lifecycleStatus());
+        assertEquals(auction.startsAt(), reloaded.startsAt());
+        assertEquals(Instant.parse("2026-09-01T10:00:00Z"), reloaded.endsAt());
+    }
+
+    @Test
+    void extendingAnUnsoldAuctionWithoutEndDateDefaultsToThirtyDaysFromNow() throws Exception {
+        Auction auction = unsoldAuction("IB-11111");
+        MockHttpSession session = loginAsAdmin();
+
+        Instant before = Instant.now();
+        mockMvc.perform(post("/admin/auctions/{id}/extend", auction.id())
+                        .session(session)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/auctions"));
+        Instant after = Instant.now();
+
+        Auction reloaded = auctionRepository.findById(auction.id()).orElseThrow();
+        assertEquals(AuctionLifecycleStatus.ACTIVE, reloaded.lifecycleStatus());
+        assertFalse(reloaded.endsAt().isBefore(before.plus(Duration.ofDays(30)).minusSeconds(1)));
+        assertFalse(reloaded.endsAt().isAfter(after.plus(Duration.ofDays(30)).plusSeconds(1)));
+    }
+
+    @Test
+    void extendingAnActiveAuctionConflicts() throws Exception {
+        Auction auction = activeAuction("IB-10101", Instant.now().plusSeconds(3600));
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions/{id}/extend", auction.id())
+                        .session(session)
+                        .with(csrf()))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void extendingWithoutLoggingInIsRejected() throws Exception {
+        Auction auction = unsoldAuction("IB-20202");
+
+        mockMvc.perform(post("/admin/auctions/{id}/extend", auction.id())
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        Auction reloaded = auctionRepository.findById(auction.id()).orElseThrow();
+        assertEquals(AuctionLifecycleStatus.UNSOLD, reloaded.lifecycleStatus());
     }
 
 }

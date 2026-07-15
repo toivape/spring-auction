@@ -258,6 +258,7 @@ a {
 
 .stamp--draft { color: var(--stamp-amber); }
 .stamp--active { color: var(--stamp-green); }
+.stamp--unsold { color: var(--accent-teal); }
 .stamp--archived { color: var(--stamp-red); }
 
 @keyframes stamp-down {

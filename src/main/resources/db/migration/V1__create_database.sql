@@ -23,7 +23,7 @@ CREATE TABLE auction
     description      TEXT           NOT NULL,
     category         TEXT           NOT NULL,
     auction_type     TEXT CHECK (auction_type IN ('FIRST_PRICE', 'SECOND_PRICE')), -- filled in by admin while editing the draft
-    lifecycle_status TEXT           NOT NULL CHECK (lifecycle_status IN ('DRAFT', 'ACTIVE', 'ARCHIVED')),
+    lifecycle_status TEXT           NOT NULL CHECK (lifecycle_status IN ('DRAFT', 'ACTIVE', 'UNSOLD', 'ARCHIVED')),
     start_price      NUMERIC(12, 2) NOT NULL,
     current_value    NUMERIC(12, 2) NOT NULL,
     currency         TEXT           NOT NULL DEFAULT 'EUR',
@@ -115,4 +115,15 @@ VALUES
     ('TEST-ACTIVE-00005', 'Active test auction 5', 'Seeded active test auction 5', 'test', 'ACTIVE', 500.00, 500.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC')
+ON CONFLICT (item_id) DO NOTHING;
+
+-- Unsold auctions: window opened 60 days ago, closed 30 days ago — already ended with no bids.
+INSERT INTO auction (item_id, title, description, category, lifecycle_status, start_price, current_value, currency, starts_at, ends_at)
+VALUES
+    ('TEST-UNSOLD-00001', 'Unsold test auction 1', 'Seeded unsold test auction 1', 'test', 'UNSOLD', 100.00, 100.00, 'EUR',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '60 days') AT TIME ZONE 'UTC',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '30 days') AT TIME ZONE 'UTC'),
+    ('TEST-UNSOLD-00002', 'Unsold test auction 2', 'Seeded unsold test auction 2', 'test', 'UNSOLD', 200.00, 200.00, 'EUR',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '60 days') AT TIME ZONE 'UTC',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '30 days') AT TIME ZONE 'UTC')
 ON CONFLICT (item_id) DO NOTHING;

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Extend auction — Manifest</title>
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+</head>
+<body>
+<div class="shell">
+    <div th:replace="~{admin/fragments/shell :: header}"></div>
+    <main class="shell-main shell-main--center">
+        <div class="entry-card panel">
+            <a class="back-link" th:href="@{/admin/auctions}">&larr; Back to manifest</a>
+            <h1 class="panel-title">Extend auction</h1>
+            <p class="entry-card-sub">
+                <span th:text="${auction.itemId}"></span> — <span th:text="${auction.description}"></span>
+            </p>
+
+            <form th:action="@{/admin/auctions/{id}/extend(id=${auction.id})}" method="post">
+                <div class="field">
+                    <label for="endsAt">New end date</label>
+                    <input type="datetime-local" id="endsAt" name="endsAt">
+                    <p class="field-hint">Leave blank to end 30 days from now.</p>
+                </div>
+                <button type="submit" class="btn-primary">Extend auction</button>
+            </form>
+        </div>
+    </main>
+</div>
+</body>
+</html>
