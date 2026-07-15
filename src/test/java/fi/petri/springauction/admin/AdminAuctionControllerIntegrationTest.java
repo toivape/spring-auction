@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
@@ -86,12 +87,67 @@ class AdminAuctionControllerIntegrationTest {
 
     @Test
     void adminCanListAuctions() throws Exception {
-        Auction auction = draftAuction();
+        // Filtered to CANCELLED (no seed data uses this status) so the assertion doesn't depend on
+        // how many DRAFT/ACTIVE/UNSOLD rows the migration seeds — those grow independently over time.
+        Auction auction = cancelledAuction("IB-90909");
         MockHttpSession session = loginAsAdmin();
 
-        mockMvc.perform(get("/admin/auctions").session(session))
+        mockMvc.perform(get("/admin/auctions").session(session).param("status", "CANCELLED"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(auction.itemId())));
+    }
+
+    @Test
+    void filteringAuctionsByStatusShowsOnlyThatStatus() throws Exception {
+        Auction draft = draftAuction();
+        Auction active = activeAuction("IB-70707", Instant.now().plusSeconds(3600));
+        MockHttpSession session = loginAsAdmin();
+
+        // size=60 gives headroom over the growing TEST-ACTIVE-* seed rows so this doesn't get
+        // page-boundary-flaky the way adminCanListAuctions etc. did after seed data grew past 15.
+        mockMvc.perform(get("/admin/auctions").session(session).param("status", "ACTIVE").param("size", "60"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(active.itemId())))
+                .andExpect(content().string(not(containsString(draft.itemId()))));
+    }
+
+    @Test
+    void invalidPageSizeFallsBackToDefault() throws Exception {
+        // Filtered to CANCELLED for the same seed-data-independence reason as adminCanListAuctions above.
+        Auction auction = cancelledAuction("IB-91919");
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(get("/admin/auctions").session(session).param("status", "CANCELLED").param("size", "999"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(auction.itemId())));
+    }
+
+    @Test
+    void pagingReturnsRequestedPage() throws Exception {
+        // CANCELLED has no seed rows, so page boundaries here are independent of migration seed data.
+        Auction firstAuction = null;
+        Auction lastAuction = null;
+        for (int i = 0; i < 16; i++) {
+            Auction auction = auctionRepository.save(new Auction(
+                    null, "IB-PAGE-" + i, null, "Dell laptop", "laptops", null,
+                    AuctionLifecycleStatus.CANCELLED, BigDecimal.valueOf(1000), BigDecimal.valueOf(450),
+                    "EUR", null, null, null, null, Instant.now()));
+            if (i == 0) {
+                firstAuction = auction;
+            }
+            lastAuction = auction;
+        }
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(get("/admin/auctions").session(session).param("status", "CANCELLED").param("size", "15").param("page", "0"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(firstAuction.itemId())))
+                .andExpect(content().string(not(containsString(lastAuction.itemId()))));
+
+        mockMvc.perform(get("/admin/auctions").session(session).param("status", "CANCELLED").param("size", "15").param("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(lastAuction.itemId())))
+                .andExpect(content().string(not(containsString(firstAuction.itemId()))));
     }
 
     @Test

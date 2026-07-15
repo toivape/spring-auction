@@ -1,6 +1,12 @@
 package fi.petri.springauction.admin;
 
+import fi.petri.springauction.auction.Auction;
+import fi.petri.springauction.auction.AuctionLifecycleStatus;
 import fi.petri.springauction.auction.AuctionService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,9 +17,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 @Controller
 public class AdminAuctionController {
+
+    private static final List<Integer> PAGE_SIZES = List.of(15, 30, 60);
 
     private final AuctionService auctionService;
 
@@ -22,9 +31,33 @@ public class AdminAuctionController {
     }
 
     @GetMapping("/admin/auctions")
-    public String list(Model model) {
-        model.addAttribute("auctions", auctionService.findAll());
+    public String list(@RequestParam(required = false) String status,
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "15") int size,
+                        Model model) {
+        AuctionLifecycleStatus statusFilter = parseStatus(status);
+        int resolvedSize = PAGE_SIZES.contains(size) ? size : PAGE_SIZES.get(0);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), resolvedSize, Sort.by("id").ascending());
+        Page<Auction> auctionPage = auctionService.findPage(statusFilter, pageable);
+
+        model.addAttribute("auctionPage", auctionPage);
+        model.addAttribute("auctions", auctionPage.getContent());
+        model.addAttribute("statuses", AuctionLifecycleStatus.values());
+        model.addAttribute("selectedStatus", statusFilter);
+        model.addAttribute("pageSizes", PAGE_SIZES);
+        model.addAttribute("selectedSize", resolvedSize);
         return "admin/auctions";
+    }
+
+    private AuctionLifecycleStatus parseStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        try {
+            return AuctionLifecycleStatus.valueOf(status);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     @GetMapping("/admin/auctions/{id}/activate")

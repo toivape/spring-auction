@@ -1,6 +1,8 @@
 package fi.petri.springauction.auction;
 
 import fi.petri.springauction.bid.BidRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,8 +25,10 @@ public class AuctionService {
         this.clock = clock;
     }
 
-    public List<Auction> findAll() {
-        return auctionRepository.findAll();
+    public Page<Auction> findPage(AuctionLifecycleStatus statusFilter, Pageable pageable) {
+        return statusFilter != null
+                ? auctionRepository.findByLifecycleStatus(statusFilter, pageable)
+                : auctionRepository.findAll(pageable);
     }
 
     public List<Auction> findActive() {

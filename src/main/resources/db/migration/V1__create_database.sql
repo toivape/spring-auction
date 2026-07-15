@@ -114,6 +114,21 @@ VALUES
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
     ('TEST-ACTIVE-00005', 'Active test auction 5', 'Seeded active test auction 5', 'test', 'ACTIVE', 500.00, 500.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
+    ('TEST-ACTIVE-00006', 'Active test auction 6', 'Seeded active test auction 6', 'test', 'ACTIVE', 600.00, 600.00, 'EUR',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
+    ('TEST-ACTIVE-00007', 'Active test auction 7', 'Seeded active test auction 7', 'test', 'ACTIVE', 700.00, 700.00, 'EUR',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
+    ('TEST-ACTIVE-00008', 'Active test auction 8', 'Seeded active test auction 8', 'test', 'ACTIVE', 800.00, 800.00, 'EUR',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
+    ('TEST-ACTIVE-00009', 'Active test auction 9', 'Seeded active test auction 9', 'test', 'ACTIVE', 900.00, 900.00, 'EUR',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
+    ('TEST-ACTIVE-00010', 'Active test auction 10', 'Seeded active test auction 10', 'test', 'ACTIVE', 1000.00, 1000.00, 'EUR',
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC')
 ON CONFLICT (item_id) DO NOTHING;
 

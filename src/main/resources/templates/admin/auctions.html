@@ -14,10 +14,28 @@
             <div class="panel">
                 <div class="panel-header">
                     <h1 class="panel-title">Auction manifest</h1>
-                    <span class="panel-count" th:text="${#lists.size(auctions)} + ' auction' + (${#lists.size(auctions)} == 1 ? '' : 's')"></span>
+                    <span class="panel-count" th:text="${auctionPage.totalElements} + ' auction' + (${auctionPage.totalElements} == 1 ? '' : 's')"></span>
                 </div>
 
-                <p class="empty-state" th:if="${#lists.isEmpty(auctions)}">No auctions yet. Ingested items will appear here as drafts.</p>
+                <form method="get" th:action="@{/admin/auctions}" class="toolbar">
+                    <div class="toolbar-field">
+                        <label for="status">Status</label>
+                        <select id="status" name="status" onchange="this.form.submit()">
+                            <option value="" th:selected="${selectedStatus == null}">All</option>
+                            <option th:each="s : ${statuses}" th:value="${s.name()}" th:text="${s.name()}" th:selected="${selectedStatus == s}"></option>
+                        </select>
+                    </div>
+                    <div class="toolbar-field">
+                        <label for="size">Page size</label>
+                        <select id="size" name="size" onchange="this.form.submit()">
+                            <option th:each="sz : ${pageSizes}" th:value="${sz}" th:text="${sz}" th:selected="${sz == selectedSize}"></option>
+                        </select>
+                    </div>
+                    <noscript><button type="submit" class="btn-ghost">Apply</button></noscript>
+                </form>
+
+                <p class="empty-state" th:if="${#lists.isEmpty(auctions)}"
+                   th:text="${selectedStatus != null} ? 'No ' + ${selectedStatus.name()} + ' auctions.' : 'No auctions yet. Ingested items will appear here as drafts.'"></p>
 
                 <div class="table-scroll" th:unless="${#lists.isEmpty(auctions)}">
                     <table class="manifest-table">
@@ -68,6 +86,16 @@
                         </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <div class="pagination" th:if="${auctionPage.totalPages > 1}">
+                    <a th:if="${auctionPage.hasPrevious()}"
+                       th:href="@{/admin/auctions(status=${selectedStatus != null ? selectedStatus.name() : null}, size=${selectedSize}, page=${auctionPage.number - 1})}"
+                       class="btn-ghost">&larr; Previous</a>
+                    <span class="pagination-info">Page <span th:text="${auctionPage.number + 1}"></span> of <span th:text="${auctionPage.totalPages}"></span></span>
+                    <a th:if="${auctionPage.hasNext()}"
+                       th:href="@{/admin/auctions(status=${selectedStatus != null ? selectedStatus.name() : null}, size=${selectedSize}, page=${auctionPage.number + 1})}"
+                       class="btn-ghost">Next &rarr;</a>
                 </div>
             </div>
         </div>
