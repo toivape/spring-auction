@@ -307,7 +307,9 @@ class AuctionControllerIntegrationTest {
         mockMvc.perform(get("/auctions/{id}", auction.id()).with(asBidder()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("You won this auction")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("300.00")));
+                .andExpect(content().string(org.hamcrest.Matchers.anyOf(
+                        org.hamcrest.Matchers.containsString("300.00"),
+                        org.hamcrest.Matchers.containsString("300,00"))));
     }
 
     @Test
@@ -321,7 +323,9 @@ class AuctionControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("You did not win")))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("You won this auction"))))
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("300.00"))));
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.anyOf(
+                        org.hamcrest.Matchers.containsString("300.00"),
+                        org.hamcrest.Matchers.containsString("300,00")))));
     }
 
     @Test

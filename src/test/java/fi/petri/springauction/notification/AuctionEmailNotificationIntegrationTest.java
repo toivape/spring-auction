@@ -39,7 +39,10 @@ import static org.mockito.Mockito.verify;
  * Non-transactional on purpose: the notifier runs on {@code AFTER_COMMIT}, so the finalization
  * transaction must actually commit for any email to be sent. Committed rows are cleaned up per test.
  */
-@SpringBootTest
+@SpringBootTest(properties = {
+        "app.notification.base-url=http://localhost:8080",
+        "app.notification.from-address=auctions@spring-auction.local"
+})
 @Import(TestcontainersConfiguration.class)
 class AuctionEmailNotificationIntegrationTest {
 
