@@ -13,6 +13,9 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Sends win/lose emails when an auction is finalized. Runs {@code AFTER_COMMIT} so a rolled-back or
  * already-finalized finalization sends nothing (send-once for free) and an email failure can never block
@@ -38,12 +41,18 @@ public class AuctionEmailNotifier {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onAuctionFinalized(AuctionFinalizedEvent event) {
-        userRepository.findById(event.winnerUserId()).ifPresent(winner ->
-                send(winner.email(), "You won the auction: " + event.auctionTitle(), "email/win", winContext(event, winner)));
+        Map<Long, User> usersById = new HashMap<>();
+        userRepository.findAllById(event.bidderUserIds()).forEach(user -> usersById.put(user.id(), user));
 
+        User winner = usersById.get(event.winnerUserId());
+        if (winner != null) {
+            send(winner.email(), "You won the auction: " + event.auctionTitle(), "email/win", winContext(event, winner));
+        }
         for (Long loserId : event.loserUserIds()) {
-            userRepository.findById(loserId).ifPresent(loser ->
-                    send(loser.email(), "Auction ended: " + event.auctionTitle(), "email/lose", loseContext(event, loser)));
+            User loser = usersById.get(loserId);
+            if (loser != null) {
+                send(loser.email(), "Auction ended: " + event.auctionTitle(), "email/lose", loseContext(event, loser));
+            }
         }
     }
 
@@ -71,12 +80,17 @@ public class AuctionEmailNotifier {
             MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
             helper.setFrom(properties.fromAddress());
             helper.setTo(to);
-            helper.setSubject(subject);
+            helper.setSubject(sanitizeHeader(subject));
             helper.setText(html, true);
             mailSender.send(message);
             log.info("Sent {} email to {}", template, to);
         } catch (Exception e) {
             log.warn("Failed to send {} email to {}: {}", template, to, e.getMessage(), e);
         }
+    }
+
+    /** Strip CR/LF so an admin/ingest-controlled auction title can't inject extra mail headers. */
+    private static String sanitizeHeader(String value) {
+        return value.replaceAll("[\\r\\n]", " ");
     }
 }
