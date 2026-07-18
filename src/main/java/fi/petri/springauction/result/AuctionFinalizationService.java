@@ -60,13 +60,16 @@ public class AuctionFinalizationService {
 
     /**
      * Finalizes a single auction as SOLD if it has eligible bids. Idempotent: a no-op if the auction is
-     * no longer ACTIVE or already has a result row. No-op (leaving the UNSOLD path to the unsold job) if
-     * there are no eligible bids.
+     * no longer ACTIVE, has not yet ended, or already has a result row. No-op (leaving the UNSOLD path to
+     * the unsold job) if there are no eligible bids.
      */
     @Transactional
     public void finalizeAuction(Long auctionId) {
         Auction auction = auctionRepository.findById(auctionId).orElse(null);
         if (auction == null || auction.lifecycleStatus() != AuctionLifecycleStatus.ACTIVE) {
+            return;
+        }
+        if (auction.endsAt().isAfter(Instant.now(clock))) {
             return;
         }
         if (resultRepository.existsByAuctionId(auctionId)) {

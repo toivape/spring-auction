@@ -62,9 +62,9 @@ class AuctionFinalizationIntegrationTest {
                 new BigDecimal(amount), userId, null, Instant.now()));
     }
 
-    private void withdraw(Long auctionId, Long userId) {
+    private void withdraw(Long auctionId, Long userId, String priorAmount) {
         bidRepository.save(new Bid(null, auctionId, userId, BidEventType.WITHDRAWN,
-                null, userId, null, Instant.now()));
+                new BigDecimal(priorAmount), userId, null, Instant.now()));
     }
 
     @Test
@@ -121,7 +121,7 @@ class AuctionFinalizationIntegrationTest {
         Auction auction = endedAuction("FIN-4", "FIRST_PRICE", "100");
         User a = user();
         placeBid(auction.id(), a.id(), "150");
-        withdraw(auction.id(), a.id());
+        withdraw(auction.id(), a.id(), "150");
 
         finalizationService.finalizeAuction(auction.id());
 
