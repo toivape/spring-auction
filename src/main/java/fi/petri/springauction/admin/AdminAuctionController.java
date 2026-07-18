@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.List;
 
 @Controller
@@ -102,7 +102,9 @@ public class AdminAuctionController {
         if (value == null || value.isBlank()) {
             return null;
         }
-        return LocalDateTime.parse(value).toInstant(ZoneOffset.UTC);
+        // The datetime-local input carries the admin's local wall-clock time with no zone; interpret it
+        // in the server's zone (same machine in local dev), not UTC — otherwise it shifts by the offset.
+        return LocalDateTime.parse(value).atZone(ZoneId.systemDefault()).toInstant();
     }
 
 }

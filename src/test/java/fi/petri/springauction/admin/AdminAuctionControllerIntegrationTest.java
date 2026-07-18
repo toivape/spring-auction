@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -53,6 +55,11 @@ class AdminAuctionControllerIntegrationTest {
                 null, "IB-99999", null, "Dell laptop", "laptops", null,
                 AuctionLifecycleStatus.DRAFT, BigDecimal.valueOf(1000), BigDecimal.valueOf(450),
                 "EUR", null, null, null, null, Instant.now()));
+    }
+
+    /** Same zone-aware conversion the controller does for datetime-local form input. */
+    private static Instant localInstant(String localDateTime) {
+        return LocalDateTime.parse(localDateTime).atZone(ZoneId.systemDefault()).toInstant();
     }
 
     private Auction activeAuction(String itemId, Instant endsAt) {
@@ -201,8 +208,8 @@ class AdminAuctionControllerIntegrationTest {
 
         Auction reloaded = auctionRepository.findById(auction.id()).orElseThrow();
         assertEquals(AuctionLifecycleStatus.ACTIVE, reloaded.lifecycleStatus());
-        assertEquals(Instant.parse("2026-08-01T10:00:00Z"), reloaded.startsAt());
-        assertEquals(Instant.parse("2026-09-01T10:00:00Z"), reloaded.endsAt());
+        assertEquals(localInstant("2026-08-01T10:00"), reloaded.startsAt());
+        assertEquals(localInstant("2026-09-01T10:00"), reloaded.endsAt());
     }
 
     @Test
@@ -332,7 +339,7 @@ class AdminAuctionControllerIntegrationTest {
         Auction reloaded = auctionRepository.findById(auction.id()).orElseThrow();
         assertEquals(AuctionLifecycleStatus.ACTIVE, reloaded.lifecycleStatus());
         assertEquals(auction.startsAt(), reloaded.startsAt());
-        assertEquals(Instant.parse("2026-09-01T10:00:00Z"), reloaded.endsAt());
+        assertEquals(localInstant("2026-09-01T10:00"), reloaded.endsAt());
     }
 
     @Test
