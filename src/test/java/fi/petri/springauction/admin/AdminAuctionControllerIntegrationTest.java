@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -338,7 +339,8 @@ class AdminAuctionControllerIntegrationTest {
 
         Auction reloaded = auctionRepository.findById(auction.id()).orElseThrow();
         assertEquals(AuctionLifecycleStatus.ACTIVE, reloaded.lifecycleStatus());
-        assertEquals(auction.startsAt(), reloaded.startsAt());
+        // Postgres timestamptz keeps microsecond precision; the in-memory Instant.now() has nanos on Linux.
+        assertEquals(auction.startsAt().truncatedTo(ChronoUnit.MICROS), reloaded.startsAt());
         assertEquals(localInstant("2026-09-01T10:00"), reloaded.endsAt());
     }
 
