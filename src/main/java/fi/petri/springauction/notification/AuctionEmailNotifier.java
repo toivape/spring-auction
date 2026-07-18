@@ -46,12 +46,12 @@ public class AuctionEmailNotifier {
 
         User winner = usersById.get(event.winnerUserId());
         if (winner != null) {
-            send(winner.email(), "You won the auction: " + event.auctionTitle(), "email/win", winContext(event, winner));
+            send(winner.email(), "Auction won", "email/win", winContext(event, winner));
         }
         for (Long loserId : event.loserUserIds()) {
             User loser = usersById.get(loserId);
             if (loser != null) {
-                send(loser.email(), "Auction ended: " + event.auctionTitle(), "email/lose", loseContext(event, loser));
+                send(loser.email(), "Auction lost", "email/lose", loseContext(event, loser));
             }
         }
     }
@@ -80,17 +80,12 @@ public class AuctionEmailNotifier {
             MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
             helper.setFrom(properties.fromAddress());
             helper.setTo(to);
-            helper.setSubject(sanitizeHeader(subject));
+            helper.setSubject(subject);
             helper.setText(html, true);
             mailSender.send(message);
             log.info("Sent {} email to {}", template, to);
         } catch (Exception e) {
             log.warn("Failed to send {} email to {}: {}", template, to, e.getMessage(), e);
         }
-    }
-
-    /** Strip CR/LF so an admin/ingest-controlled auction title can't inject extra mail headers. */
-    private static String sanitizeHeader(String value) {
-        return value.replaceAll("[\\r\\n]", " ");
     }
 }

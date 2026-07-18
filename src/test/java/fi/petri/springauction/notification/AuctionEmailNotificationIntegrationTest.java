@@ -81,12 +81,8 @@ class AuctionEmailNotificationIntegrationTest {
     }
 
     private Auction endedAuction(String itemId, String startPrice) {
-        return endedAuction(itemId, startPrice, "Dell laptop");
-    }
-
-    private Auction endedAuction(String itemId, String startPrice, String title) {
         Auction auction = auctionRepository.save(new Auction(
-                null, itemId, title, "A laptop", "laptops", "FIRST_PRICE",
+                null, itemId, "Dell laptop", "A laptop", "laptops", "FIRST_PRICE",
                 AuctionLifecycleStatus.ACTIVE, new BigDecimal(startPrice), new BigDecimal(startPrice),
                 "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60),
                 null, null, Instant.now()));
@@ -129,28 +125,15 @@ class AuctionEmailNotificationIntegrationTest {
         MimeMessage winMail = sent.stream()
                 .filter(m -> recipient(m).equals(winner.email()))
                 .findFirst().orElseThrow();
-        assertEquals("You won the auction: Dell laptop", winMail.getSubject());
+        assertEquals("Auction won", winMail.getSubject());
         String winBody = contentOf(winMail);
+        assertTrue(winBody.contains("Dell laptop"), winBody);
         assertTrue(winBody.contains("http://localhost:8080/auctions/" + auction.id()), winBody);
         assertTrue(winBody.contains("300.00 EUR"), winBody);
 
         assertEquals(
                 List.of(winner.email(), loser1.email(), loser2.email()).stream().sorted().toList(),
                 sent.stream().map(AuctionEmailNotificationIntegrationTest::recipient).sorted().toList());
-    }
-
-    @Test
-    void auctionTitleWithCrlfDoesNotLeakIntoTheSubjectHeader() throws Exception {
-        Auction auction = endedAuction("MAIL-3", "100", "Laptop\r\nBcc: attacker@example.com");
-        User winner = user();
-        placeBid(auction.id(), winner.id(), "150");
-
-        finalizationService.finalizeAuction(auction.id());
-
-        ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
-        verify(mailSender, times(1)).send(captor.capture());
-        String subject = captor.getValue().getSubject();
-        assertTrue(subject.indexOf('\r') < 0 && subject.indexOf('\n') < 0, subject);
     }
 
     @Test
