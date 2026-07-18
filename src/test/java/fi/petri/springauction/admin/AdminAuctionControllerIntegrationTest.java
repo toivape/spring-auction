@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -70,10 +71,13 @@ class AdminAuctionControllerIntegrationTest {
     }
 
     private Auction unsoldAuction(String itemId) {
+        // Microsecond precision: Postgres timestamptz rounds sub-micro nanos, so an exact round-trip
+        // comparison only holds if the in-memory value has no nanos beyond micros to begin with.
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
         return auctionRepository.save(new Auction(
                 null, itemId, "Unsold auction", "Dell laptop", "laptops", "FIRST_PRICE",
                 AuctionLifecycleStatus.UNSOLD, BigDecimal.valueOf(1000), BigDecimal.valueOf(450),
-                "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(3600), null, null, Instant.now()));
+                "EUR", now.minusSeconds(7200), now.minusSeconds(3600), null, null, now));
     }
 
     private Auction cancelledAuction(String itemId) {
