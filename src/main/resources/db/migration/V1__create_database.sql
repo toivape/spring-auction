@@ -49,10 +49,14 @@ CREATE TABLE bid
     amount        NUMERIC(12, 2), -- amount for PLACED/CHANGED; snapshot of the prior amount on WITHDRAWN/MODERATED
     actor_user_id BIGINT      NOT NULL REFERENCES "user" (id), -- self, or the admin for MODERATED
     reason        TEXT,           -- moderation reason, else NULL
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (event_type NOT IN ('PLACED', 'CHANGED') OR amount IS NOT NULL), -- active bids must carry an amount
+    CHECK (event_type = 'MODERATED' OR reason IS NULL)                     -- reason is moderation-only
 );
+-- Auction-scoped latest-row-per-user lookups (existsActiveBidForAuction, findEligibleBids, findCurrentBid).
 CREATE INDEX idx_bid_current ON bid (auction_id, user_id, id DESC);
-CREATE INDEX idx_bid_user_id ON bid (user_id);
+-- User-scoped latest-row-per-auction lookups (findCurrentActiveBidsForUser); leading user_id also covers plain user_id filters.
+CREATE INDEX idx_bid_by_user ON bid (user_id, auction_id, id DESC);
 
 CREATE TABLE auction_result
 (
