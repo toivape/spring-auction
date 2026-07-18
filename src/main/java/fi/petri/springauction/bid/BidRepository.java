@@ -35,6 +35,16 @@ public interface BidRepository extends ListCrudRepository<Bid, Long> {
             """)
     List<Bid> findCurrentActiveBidsForUser(@Param("userId") Long userId);
 
+    /** Eligible bids for finalization: each user's latest row on this auction, if still active (PLACED/CHANGED). */
+    @Query("""
+            SELECT * FROM bid b
+            WHERE b.auction_id = :auctionId
+              AND b.id = (SELECT MAX(b2.id) FROM bid b2
+                          WHERE b2.auction_id = b.auction_id AND b2.user_id = b.user_id)
+              AND b.event_type IN ('PLACED', 'CHANGED')
+            """)
+    List<Bid> findEligibleBids(@Param("auctionId") Long auctionId);
+
     /** Full append-only history for one bidder on one auction, oldest first. */
     List<Bid> findByAuctionIdAndUserIdOrderByIdAsc(Long auctionId, Long userId);
 
