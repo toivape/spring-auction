@@ -1,7 +1,8 @@
 package fi.petri.springauction.auction;
 
 import fi.petri.springauction.TestcontainersConfiguration;
-import fi.petri.springauction.bid.BidId;
+import fi.petri.springauction.bid.Bid;
+import fi.petri.springauction.bid.BidEventType;
 import fi.petri.springauction.bid.BidRepository;
 import fi.petri.springauction.user.User;
 import fi.petri.springauction.user.UserRepository;
@@ -141,12 +142,13 @@ class AuctionControllerIntegrationTest {
                 .andExpect(redirectedUrl("/auctions/" + auction.id()));
 
         User bidder = userRepository.findByGoogleSubjectId(SUBJECT).orElseThrow();
-        var bid = bidRepository.findById(new BidId(auction.id(), bidder.id())).orElseThrow();
+        var bid = bidRepository.findCurrentBid(auction.id(), bidder.id()).orElseThrow();
         assertEquals(0, BigDecimal.valueOf(150.00).compareTo(bid.amount()));
+        assertEquals(BidEventType.PLACED, bid.eventType());
     }
 
     @Test
-    void placingASecondBidUpdatesTheAmount() throws Exception {
+    void placingASecondBidAppendsANewCurrentBid() throws Exception {
         Auction auction = activeAuction("IB-C2", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
 
         mockMvc.perform(post("/auctions/{id}/bids", auction.id())
@@ -161,8 +163,15 @@ class AuctionControllerIntegrationTest {
                 .andExpect(status().is3xxRedirection());
 
         User bidder = userRepository.findByGoogleSubjectId(SUBJECT).orElseThrow();
-        var bid = bidRepository.findById(new BidId(auction.id(), bidder.id())).orElseThrow();
-        assertEquals(0, BigDecimal.valueOf(175.00).compareTo(bid.amount()));
+        var current = bidRepository.findCurrentBid(auction.id(), bidder.id()).orElseThrow();
+        assertEquals(0, BigDecimal.valueOf(175.00).compareTo(current.amount()));
+
+        var history = bidRepository.findByAuctionIdAndUserIdOrderByIdAsc(auction.id(), bidder.id());
+        assertEquals(2, history.size());
+        assertEquals(BidEventType.PLACED, history.get(0).eventType());
+        assertEquals(0, BigDecimal.valueOf(150.00).compareTo(history.get(0).amount()));
+        assertEquals(BidEventType.CHANGED, history.get(1).eventType());
+        assertEquals(0, BigDecimal.valueOf(175.00).compareTo(history.get(1).amount()));
     }
 
     @Test
@@ -199,7 +208,7 @@ class AuctionControllerIntegrationTest {
     }
 
     @Test
-    void withdrawingABidMarksItWithdrawn() throws Exception {
+    void withdrawingABidAppendsAWithdrawnRow() throws Exception {
         Auction auction = activeAuction("IB-D1", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
         mockMvc.perform(post("/auctions/{id}/bids", auction.id())
                         .with(asBidder())
@@ -214,8 +223,9 @@ class AuctionControllerIntegrationTest {
                 .andExpect(redirectedUrl("/auctions/" + auction.id()));
 
         User bidder = userRepository.findByGoogleSubjectId(SUBJECT).orElseThrow();
-        var bid = bidRepository.findById(new BidId(auction.id(), bidder.id())).orElseThrow();
-        assertTrue(bid.isWithdrawn());
+        Bid current = bidRepository.findCurrentBid(auction.id(), bidder.id()).orElseThrow();
+        assertEquals(BidEventType.WITHDRAWN, current.eventType());
+        assertTrue(bidRepository.findCurrentBid(auction.id(), bidder.id()).filter(Bid::isActive).isEmpty());
     }
 
     @Test

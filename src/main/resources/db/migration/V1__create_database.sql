@@ -37,18 +37,21 @@ CREATE TABLE auction
 );
 CREATE INDEX idx_auction_lifecycle_ends_at ON auction (lifecycle_status, ends_at);
 
+-- Append-only bid log: place/update/withdraw/moderate each INSERT a new row; rows are never mutated.
+-- A user's current bid for an auction is their latest (MAX(id)) row; active only if PLACED/CHANGED.
+-- This table is also the full bid audit trail (there is no separate bid_event table).
 CREATE TABLE bid
 (
-    auction_id        BIGINT      NOT NULL REFERENCES auction (id) ON DELETE CASCADE,
-    user_id           BIGINT      NOT NULL REFERENCES "user" (id),
-    amount            NUMERIC(12, 2), -- nullable, preserved even when withdrawn/moderated
-    is_withdrawn      BOOLEAN     NOT NULL DEFAULT FALSE,
-    moderated_by      BIGINT REFERENCES "user" (id),
-    moderation_reason TEXT,
-    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (auction_id, user_id)
+    id            BIGSERIAL PRIMARY KEY,
+    auction_id    BIGINT      NOT NULL REFERENCES auction (id) ON DELETE CASCADE,
+    user_id       BIGINT      NOT NULL REFERENCES "user" (id), -- the bidder this event is about
+    event_type    TEXT        NOT NULL CHECK (event_type IN ('PLACED', 'CHANGED', 'WITHDRAWN', 'MODERATED')),
+    amount        NUMERIC(12, 2), -- amount for PLACED/CHANGED; snapshot of the prior amount on WITHDRAWN/MODERATED
+    actor_user_id BIGINT      NOT NULL REFERENCES "user" (id), -- self, or the admin for MODERATED
+    reason        TEXT,           -- moderation reason, else NULL
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX idx_bid_current ON bid (auction_id, user_id, id DESC);
 CREATE INDEX idx_bid_user_id ON bid (user_id);
 
 CREATE TABLE auction_result
@@ -65,19 +68,6 @@ CREATE TABLE auction_result
     invalidation_reason TEXT,
     version             BIGINT      NOT NULL DEFAULT 0 -- optimistic lock, @Version
 );
-
-CREATE TABLE bid_event
-(
-    id              BIGSERIAL PRIMARY KEY,
-    auction_id      BIGINT      NOT NULL REFERENCES auction (id) ON DELETE CASCADE,
-    user_id         BIGINT      NOT NULL REFERENCES "user" (id),
-    event_type      TEXT        NOT NULL CHECK (event_type IN ('PLACED', 'CHANGED', 'WITHDRAWN', 'MODERATED')),
-    amount_snapshot NUMERIC(12, 2),
-    actor_user_id   BIGINT      NOT NULL REFERENCES "user" (id), -- self, or the admin for MODERATED
-    reason          TEXT,
-    occurred_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-);
--- Append-only: no update/delete path anywhere in the app.
 
 CREATE TABLE shedlock
 (
