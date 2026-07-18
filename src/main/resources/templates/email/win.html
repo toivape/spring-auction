@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>You won</title>
+</head>
+<body>
+<p>Hi <span th:text="${displayName}">Bidder</span>,</p>
+<p>Congratulations — you won <strong th:text="${title}">the item</strong>.</p>
+<p>Winning price: <strong th:text="|${#numbers.formatDecimal(price, 1, 'NONE', 2, 'POINT')} ${currency}|">100.00 EUR</strong></p>
+<p><a th:href="${payUrl}" href="#">Pay now</a></p>
+<p>You'll need to sign in with Google to complete the payment.</p>
+</body>
+</html>

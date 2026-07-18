@@ -18,11 +18,7 @@
             </form>
         </div>
     </header>
-    <main class="shell-main"
-          th:with="isOpen=${auction.lifecycleStatus.name() == 'ACTIVE'
-                            and auction.startsAt != null and auction.endsAt != null
-                            and !T(java.time.Instant).now().isBefore(auction.startsAt)
-                            and !T(java.time.Instant).now().isAfter(auction.endsAt)}">
+    <main class="shell-main" th:with="isOpen=${phase == 'OPEN'}">
         <div class="auction-detail">
             <a class="back-link" th:href="@{/}">&larr; Back to auctions</a>
 
@@ -54,9 +50,20 @@
                 <p class="notice notice--info" th:if="${myBid == null and isOpen}">
                     You haven't placed a bid yet.
                 </p>
-                <p class="notice notice--error" th:unless="${isOpen}">
-                    Bidding is not open for this auction.
-                </p>
+
+                <div th:unless="${isOpen}" th:switch="${phase}">
+                    <p class="notice notice--info" th:case="'PENDING'">Bidding hasn't opened yet.</p>
+                    <div th:case="'WON'">
+                        <p class="notice notice--success">You won this auction.</p>
+                        <p>Winning price:
+                            <strong th:text="|${#numbers.formatDecimal(outcome.winningPrice, 1, 2)} ${auction.currency}|"></strong>
+                        </p>
+                        <p class="notice notice--success" th:if="${outcome.paid}">Payment received.</p>
+                    </div>
+                    <p class="notice notice--info" th:case="'LOST'">This auction has ended. You did not win.</p>
+                    <p class="notice notice--info" th:case="'UNSOLD'">This auction ended without a sale.</p>
+                    <p class="notice notice--error" th:case="*">Bidding is not open for this auction.</p>
+                </div>
 
                 <form th:if="${isOpen}" th:action="@{/auctions/{id}/bids(id=${auction.id})}" method="post">
                     <div class="field">

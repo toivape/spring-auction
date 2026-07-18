@@ -5,8 +5,10 @@ import fi.petri.springauction.auction.AuctionLifecycleStatus;
 import fi.petri.springauction.auction.AuctionRepository;
 import fi.petri.springauction.bid.Bid;
 import fi.petri.springauction.bid.BidRepository;
+import fi.petri.springauction.notification.AuctionFinalizedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,15 +33,18 @@ public class AuctionFinalizationService {
     private final BidRepository bidRepository;
     private final AuctionResultRepository resultRepository;
     private final AuctionFinalizationService self;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     public AuctionFinalizationService(AuctionRepository auctionRepository, BidRepository bidRepository,
                                       AuctionResultRepository resultRepository,
-                                      @Lazy AuctionFinalizationService self, Clock clock) {
+                                      @Lazy AuctionFinalizationService self,
+                                      ApplicationEventPublisher eventPublisher, Clock clock) {
         this.auctionRepository = auctionRepository;
         this.bidRepository = bidRepository;
         this.resultRepository = resultRepository;
         this.self = self;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
@@ -93,7 +98,12 @@ public class AuctionFinalizationService {
                 auction.createdAt()));
 
         log.info("Finalized auction {} as SOLD: winner={}, price={}", auctionId, outcome.winnerUserId(), outcome.price());
-        // TODO: publish AuctionFinalizedEvent here once win/lose notification emails are built.
+
+        // Buffered until commit; the AFTER_COMMIT listener sends win/lose emails only once the result durably lands.
+        String title = auction.title() != null ? auction.title() : auction.itemId();
+        eventPublisher.publishEvent(new AuctionFinalizedEvent(
+                auctionId, title, auction.currency(), outcome.winnerUserId(), outcome.price(),
+                eligible.stream().map(Bid::userId).toList()));
     }
 
     /**

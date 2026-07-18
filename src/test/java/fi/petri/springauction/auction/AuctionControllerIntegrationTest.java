@@ -4,6 +4,9 @@ import fi.petri.springauction.TestcontainersConfiguration;
 import fi.petri.springauction.bid.Bid;
 import fi.petri.springauction.bid.BidEventType;
 import fi.petri.springauction.bid.BidRepository;
+import fi.petri.springauction.result.AuctionResult;
+import fi.petri.springauction.result.AuctionResultRepository;
+import fi.petri.springauction.result.ResultStatus;
 import fi.petri.springauction.user.User;
 import fi.petri.springauction.user.UserRepository;
 import fi.petri.springauction.user.UserRole;
@@ -60,6 +63,9 @@ class AuctionControllerIntegrationTest {
     @Autowired
     BidRepository bidRepository;
 
+    @Autowired
+    AuctionResultRepository resultRepository;
+
     private Auction activeAuction(String itemId, Instant startsAt, Instant endsAt) {
         return auctionRepository.save(new Auction(
                 null, itemId, "Active auction", "Dell laptop", "laptops", "FIRST_PRICE",
@@ -74,12 +80,28 @@ class AuctionControllerIntegrationTest {
                 "EUR", null, null, null, null, Instant.now()));
     }
 
-    private RequestPostProcessor asBidder() {
-        userRepository.findByGoogleSubjectId(SUBJECT).orElseGet(() -> userRepository.save(
+    private User bidderUser() {
+        return userRepository.findByGoogleSubjectId(SUBJECT).orElseGet(() -> userRepository.save(
                 new User(null, SUBJECT, "bidder@example.com", "Bidder", UserRole.USER, Instant.now())));
+    }
+
+    private RequestPostProcessor asBidder() {
+        bidderUser();
         return SecurityMockMvcRequestPostProcessors.oidcLogin()
                 .idToken(token -> token.subject(SUBJECT))
                 .authorities(new SimpleGrantedAuthority("ROLE_USER"));
+    }
+
+    private Auction soldAuction(String itemId, Long winnerUserId, String price) {
+        Auction auction = auctionRepository.save(new Auction(
+                null, itemId, "Sold auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                AuctionLifecycleStatus.SOLD, BigDecimal.valueOf(100), new BigDecimal(price),
+                "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60),
+                null, null, Instant.now()));
+        resultRepository.save(new AuctionResult(
+                null, auction.id(), ResultStatus.SOLD, winnerUserId, new BigDecimal(price),
+                Instant.now(), null, null, null, null, null));
+        return auction;
     }
 
     @Test
@@ -275,6 +297,48 @@ class AuctionControllerIntegrationTest {
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf()))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void detailShowsWinToTheWinnerWithTheWinningPrice() throws Exception {
+        User winner = bidderUser();
+        Auction auction = soldAuction("IB-R1", winner.id(), "300.00");
+
+        mockMvc.perform(get("/auctions/{id}", auction.id()).with(asBidder()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("You won this auction")))
+                .andExpect(content().string(org.hamcrest.Matchers.anyOf(
+                        org.hamcrest.Matchers.containsString("300.00"),
+                        org.hamcrest.Matchers.containsString("300,00"))));
+    }
+
+    @Test
+    void detailShowsDidNotWinToANonWinnerWithoutRevealingThePrice() throws Exception {
+        bidderUser();
+        User otherWinner = userRepository.save(
+                new User(null, "other-subject", "other@example.com", "Other", UserRole.USER, Instant.now()));
+        Auction auction = soldAuction("IB-R2", otherWinner.id(), "300.00");
+
+        mockMvc.perform(get("/auctions/{id}", auction.id()).with(asBidder()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("You did not win")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("You won this auction"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.anyOf(
+                        org.hamcrest.Matchers.containsString("300.00"),
+                        org.hamcrest.Matchers.containsString("300,00")))));
+    }
+
+    @Test
+    void detailShowsUnsoldWhenTheAuctionEndedWithNoSale() throws Exception {
+        Auction auction = auctionRepository.save(new Auction(
+                null, "IB-R3", "Unsold auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                AuctionLifecycleStatus.UNSOLD, BigDecimal.valueOf(100), BigDecimal.valueOf(100),
+                "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60),
+                null, null, Instant.now()));
+
+        mockMvc.perform(get("/auctions/{id}", auction.id()).with(asBidder()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("ended without a sale")));
     }
 
 }

@@ -7,3 +7,8 @@ services:
       - 'POSTGRES_USER=myuser'
     ports:
       - '5432'
+  mailpit:
+    image: 'axllent/mailpit:latest'
+    ports:
+      - '1025:1025'   # SMTP endpoint the app sends to (spring.mail.port)
+      - '8025:8025'   # web inbox — open http://localhost:8025
