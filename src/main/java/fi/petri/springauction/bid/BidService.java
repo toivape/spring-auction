@@ -6,7 +6,6 @@ import fi.petri.springauction.auction.AuctionRepository;
 import fi.petri.springauction.user.User;
 import fi.petri.springauction.user.UserRepository;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -24,28 +23,25 @@ public class BidService {
     private final BidRepository bidRepository;
     private final AuctionRepository auctionRepository;
     private final UserRepository userRepository;
-    private final JdbcClient jdbcClient;
     private final Clock clock;
 
     public BidService(BidRepository bidRepository, AuctionRepository auctionRepository,
-                       UserRepository userRepository, JdbcClient jdbcClient, Clock clock) {
+                       UserRepository userRepository, Clock clock) {
         this.bidRepository = bidRepository;
         this.auctionRepository = auctionRepository;
         this.userRepository = userRepository;
-        this.jdbcClient = jdbcClient;
         this.clock = clock;
     }
 
     public Optional<Bid> findMyBid(Long auctionId, String googleSubjectId) {
         User user = currentUser(googleSubjectId);
-        return bidRepository.findById(new BidId(auctionId, user.id())).filter(bid -> !bid.isWithdrawn());
+        return bidRepository.findCurrentBid(auctionId, user.id()).filter(Bid::isActive);
     }
 
     public Map<Long, Bid> findMyBidsByAuctionId(String googleSubjectId) {
         User user = currentUser(googleSubjectId);
-        return bidRepository.findByUserId(user.id()).stream()
-                .filter(bid -> !bid.isWithdrawn())
-                .collect(Collectors.toMap(bid -> bid.id().auctionId(), Function.identity()));
+        return bidRepository.findCurrentActiveBidsForUser(user.id()).stream()
+                .collect(Collectors.toMap(Bid::auctionId, Function.identity()));
     }
 
     public void placeBid(Long auctionId, String googleSubjectId, BigDecimal amount) {
@@ -56,31 +52,24 @@ public class BidService {
                     "Bid must be at least the start price of " + auction.startPrice());
         }
 
-        jdbcClient.sql("""
-                        INSERT INTO bid (auction_id, user_id, amount, is_withdrawn, created_at, updated_at)
-                        VALUES (:auctionId, :userId, :amount, false, now(), now())
-                        ON CONFLICT (auction_id, user_id) DO UPDATE
-                            SET amount       = EXCLUDED.amount,
-                                is_withdrawn = false,
-                                updated_at   = now()
-                        """)
-                .param("auctionId", auctionId)
-                .param("userId", user.id())
-                .param("amount", amount)
-                .update();
+        boolean hadActiveBid = bidRepository.findCurrentBid(auctionId, user.id()).filter(Bid::isActive).isPresent();
+        BidEventType eventType = hadActiveBid ? BidEventType.CHANGED : BidEventType.PLACED;
+        append(auctionId, user.id(), eventType, amount, user.id(), null);
     }
 
     public void withdrawBid(Long auctionId, String googleSubjectId) {
         User user = currentUser(googleSubjectId);
         requireOpenForBidding(auctionId);
-        bidRepository.findById(new BidId(auctionId, user.id()))
-                .filter(bid -> !bid.isWithdrawn())
+        Bid current = bidRepository.findCurrentBid(auctionId, user.id())
+                .filter(Bid::isActive)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No active bid to withdraw"));
 
-        jdbcClient.sql("UPDATE bid SET is_withdrawn = true, updated_at = now() WHERE auction_id = :auctionId AND user_id = :userId")
-                .param("auctionId", auctionId)
-                .param("userId", user.id())
-                .update();
+        append(auctionId, user.id(), BidEventType.WITHDRAWN, current.amount(), user.id(), null);
+    }
+
+    private void append(Long auctionId, Long userId, BidEventType eventType, BigDecimal amount,
+                         Long actorUserId, String reason) {
+        bidRepository.save(new Bid(null, auctionId, userId, eventType, amount, actorUserId, reason, Instant.now(clock)));
     }
 
     private Auction requireOpenForBidding(Long auctionId) {

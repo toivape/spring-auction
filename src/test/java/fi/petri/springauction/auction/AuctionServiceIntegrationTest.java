@@ -42,7 +42,7 @@ class AuctionServiceIntegrationTest {
 
     private void placeBidOn(Long auctionId) {
         User bidder = userRepository.save(new User(null, null, "bidder@example.com", "Bidder", UserRole.USER, Instant.now()));
-        jdbcClient.sql("INSERT INTO bid (auction_id, user_id, amount, is_withdrawn) VALUES (:auctionId, :userId, :amount, false)")
+        jdbcClient.sql("INSERT INTO bid (auction_id, user_id, event_type, amount, actor_user_id) VALUES (:auctionId, :userId, 'PLACED', :amount, :userId)")
                 .param("auctionId", auctionId)
                 .param("userId", bidder.id())
                 .param("amount", BigDecimal.valueOf(500))
