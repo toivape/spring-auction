@@ -83,6 +83,9 @@ public class AuctionService {
         // An UNSOLD auction has no active bids, so start price and current value move together; a blank
         // startPrice keeps the existing one (resolvedStartPrice == old startPrice == old currentValue).
         BigDecimal resolvedStartPrice = startPrice != null ? startPrice : auction.startPrice();
+        if (resolvedStartPrice.signum() < 0) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Start price must not be negative");
+        }
 
         appendVersion(auction, AuctionLifecycleStatus.ACTIVE, resolvedStartPrice, resolvedStartPrice,
                 auction.startsAt(), resolvedEndsAt);

@@ -508,6 +508,23 @@ class AdminAuctionControllerIntegrationTest {
     }
 
     @Test
+    void extendingAnUnsoldAuctionWithANegativeStartPriceIsRejected() throws Exception {
+        Auction auction = unsoldAuction("IB-55544");
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions/{id}/extend", auction.auctionRef())
+                        .session(session)
+                        .with(csrf())
+                        .param("startPrice", "-1.00"))
+                .andExpect(status().isUnprocessableEntity());
+
+        // Rejected before any version is appended: the auction stays UNSOLD at its original price.
+        Auction reloaded = auctionRepository.findCurrentByRef(auction.auctionRef()).orElseThrow();
+        assertEquals(AuctionLifecycleStatus.UNSOLD, reloaded.lifecycleStatus());
+        assertEquals(0, auction.startPrice().compareTo(reloaded.startPrice()));
+    }
+
+    @Test
     void aTransitionAppendsANewVersionAndLeavesTheOldRowIntact() throws Exception {
         Auction original = unsoldAuction("IB-55533");
         Long ref = original.auctionRef();

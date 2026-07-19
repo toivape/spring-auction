@@ -13,7 +13,9 @@ import java.util.Optional;
  * The current state of a logical auction is its latest row (MAX(id)) for a given {@code auction_ref}.
  * Reads below collapse to that current row; writes go through {@code save(new Auction(null, ...))}
  * (null @Id ⇒ INSERT), never an in-place update. {@code lifecycle_status} is bound as a String name
- * so no enum-parameter conversion is relied upon; a null status matches every current auction.
+ * so no enum-parameter conversion is relied upon. A null status is only meaningful for
+ * {@code findCurrentPage}/{@code countCurrent}, whose {@code :status IS NULL OR ...} guard treats it as
+ * "any status"; the other status-filtered queries require a non-null status and are always passed one.
  */
 public interface AuctionRepository extends ListCrudRepository<Auction, Long> {
 
