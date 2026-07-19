@@ -73,7 +73,7 @@ public class BidService {
     }
 
     private Auction requireOpenForBidding(Long auctionId) {
-        Auction auction = auctionRepository.findById(auctionId)
+        Auction auction = auctionRepository.findCurrentByRef(auctionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Auction not found: " + auctionId));
 
         Instant now = Instant.now(clock);

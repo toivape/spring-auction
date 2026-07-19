@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -93,9 +94,18 @@ public class AdminAuctionController {
     }
 
     @PostMapping("/admin/auctions/{id}/extend")
-    public String extend(@PathVariable Long id, @RequestParam(required = false) String endsAt) {
-        auctionService.extend(id, parseDateTime(endsAt));
+    public String extend(@PathVariable Long id,
+                         @RequestParam(required = false) String endsAt,
+                         @RequestParam(required = false) String startPrice) {
+        auctionService.extend(id, parseDateTime(endsAt), parseDecimal(startPrice));
         return "redirect:/admin/auctions";
+    }
+
+    private BigDecimal parseDecimal(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return new BigDecimal(value.trim());
     }
 
     private Instant parseDateTime(String value) {

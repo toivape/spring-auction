@@ -28,8 +28,8 @@
             <p class="empty-state" th:if="${#lists.isEmpty(auctions)}">No auctions are open for bidding right now. Check back soon.</p>
 
             <div class="auction-grid" th:unless="${#lists.isEmpty(auctions)}">
-                <a class="auction-card" th:each="auction : ${auctions}" th:with="myBid=${myBids.get(auction.id)}"
-                   th:href="@{/auctions/{id}(id=${auction.id})}">
+                <a class="auction-card" th:each="auction : ${auctions}" th:with="myBid=${myBids.get(auction.auctionRef)}"
+                   th:href="@{/auctions/{id}(id=${auction.auctionRef})}">
                     <div class="asset-tag-row">
                         <span th:text="${auction.itemId}"></span>
                         <span class="category-chip" th:text="${auction.category}"></span>

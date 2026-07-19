@@ -15,10 +15,16 @@ CREATE TABLE admin_credential
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Append-only auction log: every change (ingest, activate, extend, cancel, finalize, ...) INSERTs a new
+-- row; rows are never mutated. The current state of a logical auction is its latest (MAX(id)) row.
+-- auction_ref is the stable logical id shared across an auction's versions; bid.auction_id and
+-- auction_result.auction_id reference it (no DB FK — the target is non-unique here — so app code enforces it).
+CREATE SEQUENCE auction_ref_seq;
 CREATE TABLE auction
 (
-    id               BIGSERIAL PRIMARY KEY,
-    item_id          TEXT           NOT NULL,         -- unique item ID in the source system
+    id               BIGSERIAL PRIMARY KEY,                    -- version/ordering token; latest = MAX(id) per auction_ref
+    auction_ref      BIGINT         NOT NULL,                  -- stable logical auction id (from auction_ref_seq)
+    item_id          TEXT           NOT NULL,                  -- item ID in the source system (ingestion idempotency key)
     title            TEXT,                            -- filled in by admin while editing the draft
     description      TEXT           NOT NULL,
     category         TEXT           NOT NULL,
@@ -31,10 +37,14 @@ CREATE TABLE auction
     ends_at          TIMESTAMPTZ,                     -- filled in by admin while editing the draft
     comment          TEXT,
     serial_number    TEXT,
-    created_at       TIMESTAMPTZ    NOT NULL DEFAULT now(),
-    CHECK (ends_at IS NULL OR ends_at > starts_at),
-    UNIQUE (item_id) -- ingestion idempotency key
+    created_at       TIMESTAMPTZ    NOT NULL DEFAULT now(),    -- when this version row was written
+    CHECK (ends_at IS NULL OR ends_at > starts_at)
 );
+-- Latest-version-per-auction lookups (findCurrentByRef and the MAX(id) current-state subqueries).
+CREATE INDEX idx_auction_current ON auction (auction_ref, id DESC);
+-- Ingestion idempotency: latest version for a given source item_id.
+CREATE INDEX idx_auction_item ON auction (item_id, id DESC);
+-- Narrows the finalization scan before the current-state collapse.
 CREATE INDEX idx_auction_lifecycle_ends_at ON auction (lifecycle_status, ends_at);
 
 -- Append-only bid log: place/update/withdraw/moderate each INSERT a new row; rows are never mutated.
@@ -43,7 +53,7 @@ CREATE INDEX idx_auction_lifecycle_ends_at ON auction (lifecycle_status, ends_at
 CREATE TABLE bid
 (
     id            BIGSERIAL PRIMARY KEY,
-    auction_id    BIGINT      NOT NULL REFERENCES auction (id) ON DELETE CASCADE,
+    auction_id    BIGINT      NOT NULL, -- auction_ref (logical auction id); no DB FK, target is non-unique
     user_id       BIGINT      NOT NULL REFERENCES "user" (id), -- the bidder this event is about
     event_type    TEXT        NOT NULL CHECK (event_type IN ('PLACED', 'CHANGED', 'WITHDRAWN', 'MODERATED')),
     amount        NUMERIC(12, 2), -- amount for PLACED/CHANGED; snapshot of the prior amount on WITHDRAWN/MODERATED
@@ -61,7 +71,7 @@ CREATE INDEX idx_bid_by_user ON bid (user_id, auction_id, id DESC);
 CREATE TABLE auction_result
 (
     id                  BIGSERIAL PRIMARY KEY,
-    auction_id          BIGINT      NOT NULL UNIQUE REFERENCES auction (id) ON DELETE CASCADE,
+    auction_id          BIGINT      NOT NULL UNIQUE, -- auction_ref (logical auction id); no DB FK, target is non-unique
     result_status       TEXT        NOT NULL CHECK (result_status IN ('SOLD', 'UNSOLD', 'VOIDED')),
     winner_user_id      BIGINT REFERENCES "user" (id),
     winning_price       NUMERIC(12, 2),
@@ -81,58 +91,55 @@ CREATE TABLE shedlock
     locked_by  VARCHAR(255) NOT NULL
 );
 
-INSERT INTO auction (item_id, title, description, category, lifecycle_status, start_price, current_value, currency)
+INSERT INTO auction (auction_ref, item_id, title, description, category, lifecycle_status, start_price, current_value, currency)
 VALUES
-    ('TEST-00001', 'Test auction 1', 'Seeded test auction 1', 'test', 'DRAFT', 100.00, 100.00, 'EUR'),
-    ('TEST-00002', 'Test auction 2', 'Seeded test auction 2', 'test', 'DRAFT', 200.00, 200.00, 'EUR'),
-    ('TEST-00003', 'Test auction 3', 'Seeded test auction 3', 'test', 'DRAFT', 300.00, 300.00, 'EUR'),
-    ('TEST-00004', 'Test auction 4', 'Seeded test auction 4', 'test', 'DRAFT', 400.00, 400.00, 'EUR'),
-    ('TEST-00005', 'Test auction 5', 'Seeded test auction 5', 'test', 'DRAFT', 500.00, 500.00, 'EUR')
-ON CONFLICT (item_id) DO NOTHING;
+    (nextval('auction_ref_seq'), 'TEST-00001', 'Test auction 1', 'Seeded test auction 1', 'test', 'DRAFT', 100.00, 100.00, 'EUR'),
+    (nextval('auction_ref_seq'), 'TEST-00002', 'Test auction 2', 'Seeded test auction 2', 'test', 'DRAFT', 200.00, 200.00, 'EUR'),
+    (nextval('auction_ref_seq'), 'TEST-00003', 'Test auction 3', 'Seeded test auction 3', 'test', 'DRAFT', 300.00, 300.00, 'EUR'),
+    (nextval('auction_ref_seq'), 'TEST-00004', 'Test auction 4', 'Seeded test auction 4', 'test', 'DRAFT', 400.00, 400.00, 'EUR'),
+    (nextval('auction_ref_seq'), 'TEST-00005', 'Test auction 5', 'Seeded test auction 5', 'test', 'DRAFT', 500.00, 500.00, 'EUR');
 
 -- Active auctions: window opened yesterday at 00:00 UTC, closes 30 days later at 23:59:59 UTC.
 -- Anchored to UTC explicitly (not CURRENT_DATE) so the window doesn't shift with the connecting session's timezone.
-INSERT INTO auction (item_id, title, description, category, lifecycle_status, start_price, current_value, currency, starts_at, ends_at)
+INSERT INTO auction (auction_ref, item_id, title, description, category, lifecycle_status, start_price, current_value, currency, starts_at, ends_at)
 VALUES
-    ('TEST-ACTIVE-00001', 'Active test auction 1', 'Seeded active test auction 1', 'test', 'ACTIVE', 100.00, 100.00, 'EUR',
+    (nextval('auction_ref_seq'), 'TEST-ACTIVE-00001', 'Active test auction 1', 'Seeded active test auction 1', 'test', 'ACTIVE', 100.00, 100.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
-    ('TEST-ACTIVE-00002', 'Active test auction 2', 'Seeded active test auction 2', 'test', 'ACTIVE', 200.00, 200.00, 'EUR',
+    (nextval('auction_ref_seq'), 'TEST-ACTIVE-00002', 'Active test auction 2', 'Seeded active test auction 2', 'test', 'ACTIVE', 200.00, 200.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
-    ('TEST-ACTIVE-00003', 'Active test auction 3', 'Seeded active test auction 3', 'test', 'ACTIVE', 300.00, 300.00, 'EUR',
+    (nextval('auction_ref_seq'), 'TEST-ACTIVE-00003', 'Active test auction 3', 'Seeded active test auction 3', 'test', 'ACTIVE', 300.00, 300.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
-    ('TEST-ACTIVE-00004', 'Active test auction 4', 'Seeded active test auction 4', 'test', 'ACTIVE', 400.00, 400.00, 'EUR',
+    (nextval('auction_ref_seq'), 'TEST-ACTIVE-00004', 'Active test auction 4', 'Seeded active test auction 4', 'test', 'ACTIVE', 400.00, 400.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
-    ('TEST-ACTIVE-00005', 'Active test auction 5', 'Seeded active test auction 5', 'test', 'ACTIVE', 500.00, 500.00, 'EUR',
+    (nextval('auction_ref_seq'), 'TEST-ACTIVE-00005', 'Active test auction 5', 'Seeded active test auction 5', 'test', 'ACTIVE', 500.00, 500.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
-    ('TEST-ACTIVE-00006', 'Active test auction 6', 'Seeded active test auction 6', 'test', 'ACTIVE', 600.00, 600.00, 'EUR',
+    (nextval('auction_ref_seq'), 'TEST-ACTIVE-00006', 'Active test auction 6', 'Seeded active test auction 6', 'test', 'ACTIVE', 600.00, 600.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
-    ('TEST-ACTIVE-00007', 'Active test auction 7', 'Seeded active test auction 7', 'test', 'ACTIVE', 700.00, 700.00, 'EUR',
+    (nextval('auction_ref_seq'), 'TEST-ACTIVE-00007', 'Active test auction 7', 'Seeded active test auction 7', 'test', 'ACTIVE', 700.00, 700.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
-    ('TEST-ACTIVE-00008', 'Active test auction 8', 'Seeded active test auction 8', 'test', 'ACTIVE', 800.00, 800.00, 'EUR',
+    (nextval('auction_ref_seq'), 'TEST-ACTIVE-00008', 'Active test auction 8', 'Seeded active test auction 8', 'test', 'ACTIVE', 800.00, 800.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
-    ('TEST-ACTIVE-00009', 'Active test auction 9', 'Seeded active test auction 9', 'test', 'ACTIVE', 900.00, 900.00, 'EUR',
+    (nextval('auction_ref_seq'), 'TEST-ACTIVE-00009', 'Active test auction 9', 'Seeded active test auction 9', 'test', 'ACTIVE', 900.00, 900.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC'),
-    ('TEST-ACTIVE-00010', 'Active test auction 10', 'Seeded active test auction 10', 'test', 'ACTIVE', 1000.00, 1000.00, 'EUR',
+    (nextval('auction_ref_seq'), 'TEST-ACTIVE-00010', 'Active test auction 10', 'Seeded active test auction 10', 'test', 'ACTIVE', 1000.00, 1000.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
-     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC')
-ON CONFLICT (item_id) DO NOTHING;
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC');
 
 -- Unsold auctions: window opened 60 days ago, closed 30 days ago — already ended with no bids.
-INSERT INTO auction (item_id, title, description, category, lifecycle_status, start_price, current_value, currency, starts_at, ends_at)
+INSERT INTO auction (auction_ref, item_id, title, description, category, lifecycle_status, start_price, current_value, currency, starts_at, ends_at)
 VALUES
-    ('TEST-UNSOLD-00001', 'Unsold test auction 1', 'Seeded unsold test auction 1', 'test', 'UNSOLD', 100.00, 100.00, 'EUR',
+    (nextval('auction_ref_seq'), 'TEST-UNSOLD-00001', 'Unsold test auction 1', 'Seeded unsold test auction 1', 'test', 'UNSOLD', 100.00, 100.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '60 days') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '30 days') AT TIME ZONE 'UTC'),
-    ('TEST-UNSOLD-00002', 'Unsold test auction 2', 'Seeded unsold test auction 2', 'test', 'UNSOLD', 200.00, 200.00, 'EUR',
+    (nextval('auction_ref_seq'), 'TEST-UNSOLD-00002', 'Unsold test auction 2', 'Seeded unsold test auction 2', 'test', 'UNSOLD', 200.00, 200.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '60 days') AT TIME ZONE 'UTC',
-     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '30 days') AT TIME ZONE 'UTC')
-ON CONFLICT (item_id) DO NOTHING;
+     (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '30 days') AT TIME ZONE 'UTC');

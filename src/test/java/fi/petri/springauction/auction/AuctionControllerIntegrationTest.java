@@ -68,14 +68,14 @@ class AuctionControllerIntegrationTest {
 
     private Auction activeAuction(String itemId, Instant startsAt, Instant endsAt) {
         return auctionRepository.save(new Auction(
-                null, itemId, "Active auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                null, auctionRepository.nextAuctionRef(), itemId, "Active auction", "Dell laptop", "laptops", "FIRST_PRICE",
                 AuctionLifecycleStatus.ACTIVE, BigDecimal.valueOf(100), BigDecimal.valueOf(150),
                 "EUR", startsAt, endsAt, null, null, Instant.now()));
     }
 
     private Auction draftAuction(String itemId) {
         return auctionRepository.save(new Auction(
-                null, itemId, null, "Dell laptop", "laptops", null,
+                null, auctionRepository.nextAuctionRef(), itemId, null, "Dell laptop", "laptops", null,
                 AuctionLifecycleStatus.DRAFT, BigDecimal.valueOf(100), BigDecimal.valueOf(150),
                 "EUR", null, null, null, null, Instant.now()));
     }
@@ -94,12 +94,12 @@ class AuctionControllerIntegrationTest {
 
     private Auction soldAuction(String itemId, Long winnerUserId, String price) {
         Auction auction = auctionRepository.save(new Auction(
-                null, itemId, "Sold auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                null, auctionRepository.nextAuctionRef(), itemId, "Sold auction", "Dell laptop", "laptops", "FIRST_PRICE",
                 AuctionLifecycleStatus.SOLD, BigDecimal.valueOf(100), new BigDecimal(price),
                 "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60),
                 null, null, Instant.now()));
         resultRepository.save(new AuctionResult(
-                null, auction.id(), ResultStatus.SOLD, winnerUserId, new BigDecimal(price),
+                null, auction.auctionRef(), ResultStatus.SOLD, winnerUserId, new BigDecimal(price),
                 Instant.now(), null, null, null, null, null));
         return auction;
     }
@@ -132,7 +132,7 @@ class AuctionControllerIntegrationTest {
         Auction bidOn = activeAuction("IB-A3", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
         Auction notBidOn = activeAuction("IB-A4", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
 
-        mockMvc.perform(post("/auctions/{id}/bids", bidOn.id())
+        mockMvc.perform(post("/auctions/{id}/bids", bidOn.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
                         .param("amount", "150.00"))
@@ -147,7 +147,7 @@ class AuctionControllerIntegrationTest {
     void auctionDetailShowsNoBidInitially() throws Exception {
         Auction auction = activeAuction("IB-B1", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
 
-        mockMvc.perform(get("/auctions/{id}", auction.id()).with(asBidder()))
+        mockMvc.perform(get("/auctions/{id}", auction.auctionRef()).with(asBidder()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("You haven't placed a bid yet")));
     }
@@ -156,15 +156,15 @@ class AuctionControllerIntegrationTest {
     void placingABidPersistsIt() throws Exception {
         Auction auction = activeAuction("IB-C1", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
 
-        mockMvc.perform(post("/auctions/{id}/bids", auction.id())
+        mockMvc.perform(post("/auctions/{id}/bids", auction.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
                         .param("amount", "150.00"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auctions/" + auction.id()));
+                .andExpect(redirectedUrl("/auctions/" + auction.auctionRef()));
 
         User bidder = userRepository.findByGoogleSubjectId(SUBJECT).orElseThrow();
-        var bid = bidRepository.findCurrentBid(auction.id(), bidder.id()).orElseThrow();
+        var bid = bidRepository.findCurrentBid(auction.auctionRef(), bidder.id()).orElseThrow();
         assertEquals(0, BigDecimal.valueOf(150.00).compareTo(bid.amount()));
         assertEquals(BidEventType.PLACED, bid.eventType());
     }
@@ -173,22 +173,22 @@ class AuctionControllerIntegrationTest {
     void placingASecondBidAppendsANewCurrentBid() throws Exception {
         Auction auction = activeAuction("IB-C2", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
 
-        mockMvc.perform(post("/auctions/{id}/bids", auction.id())
+        mockMvc.perform(post("/auctions/{id}/bids", auction.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
                         .param("amount", "150.00"))
                 .andExpect(status().is3xxRedirection());
-        mockMvc.perform(post("/auctions/{id}/bids", auction.id())
+        mockMvc.perform(post("/auctions/{id}/bids", auction.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
                         .param("amount", "175.00"))
                 .andExpect(status().is3xxRedirection());
 
         User bidder = userRepository.findByGoogleSubjectId(SUBJECT).orElseThrow();
-        var current = bidRepository.findCurrentBid(auction.id(), bidder.id()).orElseThrow();
+        var current = bidRepository.findCurrentBid(auction.auctionRef(), bidder.id()).orElseThrow();
         assertEquals(0, BigDecimal.valueOf(175.00).compareTo(current.amount()));
 
-        var history = bidRepository.findByAuctionIdAndUserIdOrderByIdAsc(auction.id(), bidder.id());
+        var history = bidRepository.findByAuctionIdAndUserIdOrderByIdAsc(auction.auctionRef(), bidder.id());
         assertEquals(2, history.size());
         assertEquals(BidEventType.PLACED, history.get(0).eventType());
         assertEquals(0, BigDecimal.valueOf(150.00).compareTo(history.get(0).amount()));
@@ -200,7 +200,7 @@ class AuctionControllerIntegrationTest {
     void bidBelowStartPriceIsRejected() throws Exception {
         Auction auction = activeAuction("IB-C3", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
 
-        mockMvc.perform(post("/auctions/{id}/bids", auction.id())
+        mockMvc.perform(post("/auctions/{id}/bids", auction.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
                         .param("amount", "50.00"))
@@ -211,7 +211,7 @@ class AuctionControllerIntegrationTest {
     void biddingOnADraftAuctionConflicts() throws Exception {
         Auction auction = draftAuction("IB-C4");
 
-        mockMvc.perform(post("/auctions/{id}/bids", auction.id())
+        mockMvc.perform(post("/auctions/{id}/bids", auction.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
                         .param("amount", "150.00"))
@@ -222,7 +222,7 @@ class AuctionControllerIntegrationTest {
     void biddingAfterTheAuctionHasEndedConflicts() throws Exception {
         Auction auction = activeAuction("IB-C5", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(3600));
 
-        mockMvc.perform(post("/auctions/{id}/bids", auction.id())
+        mockMvc.perform(post("/auctions/{id}/bids", auction.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
                         .param("amount", "150.00"))
@@ -232,38 +232,38 @@ class AuctionControllerIntegrationTest {
     @Test
     void withdrawingABidAppendsAWithdrawnRow() throws Exception {
         Auction auction = activeAuction("IB-D1", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
-        mockMvc.perform(post("/auctions/{id}/bids", auction.id())
+        mockMvc.perform(post("/auctions/{id}/bids", auction.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
                         .param("amount", "150.00"))
                 .andExpect(status().is3xxRedirection());
 
-        mockMvc.perform(post("/auctions/{id}/bids/withdraw", auction.id())
+        mockMvc.perform(post("/auctions/{id}/bids/withdraw", auction.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auctions/" + auction.id()));
+                .andExpect(redirectedUrl("/auctions/" + auction.auctionRef()));
 
         User bidder = userRepository.findByGoogleSubjectId(SUBJECT).orElseThrow();
-        Bid current = bidRepository.findCurrentBid(auction.id(), bidder.id()).orElseThrow();
+        Bid current = bidRepository.findCurrentBid(auction.auctionRef(), bidder.id()).orElseThrow();
         assertEquals(BidEventType.WITHDRAWN, current.eventType());
-        assertTrue(bidRepository.findCurrentBid(auction.id(), bidder.id()).filter(Bid::isActive).isEmpty());
+        assertTrue(bidRepository.findCurrentBid(auction.auctionRef(), bidder.id()).filter(Bid::isActive).isEmpty());
     }
 
     @Test
     void withdrawnBidNoLongerShowsAsMyCurrentBid() throws Exception {
         Auction auction = activeAuction("IB-D2", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
-        mockMvc.perform(post("/auctions/{id}/bids", auction.id())
+        mockMvc.perform(post("/auctions/{id}/bids", auction.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
                         .param("amount", "150.00"))
                 .andExpect(status().is3xxRedirection());
-        mockMvc.perform(post("/auctions/{id}/bids/withdraw", auction.id())
+        mockMvc.perform(post("/auctions/{id}/bids/withdraw", auction.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf()))
                 .andExpect(status().is3xxRedirection());
 
-        mockMvc.perform(get("/auctions/{id}", auction.id()).with(asBidder()))
+        mockMvc.perform(get("/auctions/{id}", auction.auctionRef()).with(asBidder()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("You haven't placed a bid yet")));
     }
@@ -272,7 +272,7 @@ class AuctionControllerIntegrationTest {
     void withdrawingWithNoBidReturnsNotFound() throws Exception {
         Auction auction = activeAuction("IB-D3", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
 
-        mockMvc.perform(post("/auctions/{id}/bids/withdraw", auction.id())
+        mockMvc.perform(post("/auctions/{id}/bids/withdraw", auction.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf()))
                 .andExpect(status().isNotFound());
@@ -281,19 +281,19 @@ class AuctionControllerIntegrationTest {
     @Test
     void withdrawingAfterTheAuctionHasEndedConflicts() throws Exception {
         Auction auction = activeAuction("IB-D4", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(2));
-        mockMvc.perform(post("/auctions/{id}/bids", auction.id())
+        mockMvc.perform(post("/auctions/{id}/bids", auction.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
                         .param("amount", "150.00"))
                 .andExpect(status().is3xxRedirection());
 
         Auction ended = auctionRepository.save(new Auction(
-                auction.id(), auction.itemId(), auction.title(), auction.description(), auction.category(),
+                null, auction.auctionRef(), auction.itemId(), auction.title(), auction.description(), auction.category(),
                 auction.auctionType(), auction.lifecycleStatus(), auction.startPrice(), auction.currentValue(),
                 auction.currency(), auction.startsAt(), Instant.now().minusSeconds(1), auction.comment(),
                 auction.serialNumber(), auction.createdAt()));
 
-        mockMvc.perform(post("/auctions/{id}/bids/withdraw", ended.id())
+        mockMvc.perform(post("/auctions/{id}/bids/withdraw", ended.auctionRef())
                         .with(asBidder())
                         .with(SecurityMockMvcRequestPostProcessors.csrf()))
                 .andExpect(status().isConflict());
@@ -304,7 +304,7 @@ class AuctionControllerIntegrationTest {
         User winner = bidderUser();
         Auction auction = soldAuction("IB-R1", winner.id(), "300.00");
 
-        mockMvc.perform(get("/auctions/{id}", auction.id()).with(asBidder()))
+        mockMvc.perform(get("/auctions/{id}", auction.auctionRef()).with(asBidder()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("You won this auction")))
                 .andExpect(content().string(org.hamcrest.Matchers.anyOf(
@@ -319,7 +319,7 @@ class AuctionControllerIntegrationTest {
                 new User(null, "other-subject", "other@example.com", "Other", UserRole.USER, Instant.now()));
         Auction auction = soldAuction("IB-R2", otherWinner.id(), "300.00");
 
-        mockMvc.perform(get("/auctions/{id}", auction.id()).with(asBidder()))
+        mockMvc.perform(get("/auctions/{id}", auction.auctionRef()).with(asBidder()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("You did not win")))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("You won this auction"))))
@@ -331,12 +331,12 @@ class AuctionControllerIntegrationTest {
     @Test
     void detailShowsUnsoldWhenTheAuctionEndedWithNoSale() throws Exception {
         Auction auction = auctionRepository.save(new Auction(
-                null, "IB-R3", "Unsold auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                null, auctionRepository.nextAuctionRef(), "IB-R3", "Unsold auction", "Dell laptop", "laptops", "FIRST_PRICE",
                 AuctionLifecycleStatus.UNSOLD, BigDecimal.valueOf(100), BigDecimal.valueOf(100),
                 "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60),
                 null, null, Instant.now()));
 
-        mockMvc.perform(get("/auctions/{id}", auction.id()).with(asBidder()))
+        mockMvc.perform(get("/auctions/{id}", auction.auctionRef()).with(asBidder()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("ended without a sale")));
     }

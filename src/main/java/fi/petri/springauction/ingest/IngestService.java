@@ -20,8 +20,14 @@ public class IngestService {
     }
 
     public void ingest(AuctionRequest item) {
+        // Idempotent by source item_id: a re-ingest of an already-seen item is a no-op, so admin edits
+        // (title, activation, ...) captured in later versions are never reset to a fresh DRAFT.
+        if (auctionRepository.findRefByItemId(item.id()).isPresent()) {
+            return;
+        }
         Auction auction = new Auction(
                 null,
+                auctionRepository.nextAuctionRef(),
                 item.id(),
                 null,
                 item.description(),
