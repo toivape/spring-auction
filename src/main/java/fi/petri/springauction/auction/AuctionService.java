@@ -2,11 +2,13 @@ package fi.petri.springauction.auction;
 
 import fi.petri.springauction.bid.BidRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,104 +28,105 @@ public class AuctionService {
     }
 
     public Page<Auction> findPage(AuctionLifecycleStatus statusFilter, Pageable pageable) {
-        return statusFilter != null
-                ? auctionRepository.findByLifecycleStatus(statusFilter, pageable)
-                : auctionRepository.findAll(pageable);
+        String status = statusFilter != null ? statusFilter.name() : null;
+        List<Auction> content = auctionRepository.findCurrentPage(status, pageable.getPageSize(), pageable.getOffset());
+        long total = auctionRepository.countCurrent(status);
+        return new PageImpl<>(content, pageable, total);
     }
 
     public List<Auction> findActive() {
-        return auctionRepository.findByLifecycleStatus(AuctionLifecycleStatus.ACTIVE);
+        return auctionRepository.findCurrentByLifecycleStatus(AuctionLifecycleStatus.ACTIVE.name());
     }
 
-    public Auction findById(Long auctionId) {
-        return auctionRepository.findById(auctionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Auction not found: " + auctionId));
+    public Auction findById(Long auctionRef) {
+        return auctionRepository.findCurrentByRef(auctionRef)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Auction not found: " + auctionRef));
     }
 
-    public void activate(Long auctionId, Instant startsAt, Instant endsAt) {
-        Auction auction = findById(auctionId);
+    public void activate(Long auctionRef, Instant startsAt, Instant endsAt) {
+        Auction auction = findById(auctionRef);
 
         if (auction.lifecycleStatus() != AuctionLifecycleStatus.DRAFT) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Auction " + auctionId + " is not in DRAFT status");
+                    "Auction " + auctionRef + " is not in DRAFT status");
         }
 
         Instant resolvedStartsAt = startsAt != null ? startsAt : Instant.now(clock);
         Instant resolvedEndsAt = endsAt != null ? endsAt : resolvedStartsAt.plus(Duration.ofDays(30));
 
-        auctionRepository.save(new Auction(
-                auction.id(), auction.itemId(), auction.title(), auction.description(), auction.category(),
-                auction.auctionType(), AuctionLifecycleStatus.ACTIVE, auction.startPrice(), auction.currentValue(),
-                auction.currency(), resolvedStartsAt, resolvedEndsAt, auction.comment(), auction.serialNumber(),
-                auction.createdAt()
-        ));
+        appendVersion(auction, AuctionLifecycleStatus.ACTIVE, auction.startPrice(), auction.currentValue(),
+                resolvedStartsAt, resolvedEndsAt);
     }
 
-    public void archive(Long auctionId) {
-        Auction auction = findById(auctionId);
+    public void archive(Long auctionRef) {
+        Auction auction = findById(auctionRef);
 
         if (auction.lifecycleStatus() != AuctionLifecycleStatus.UNSOLD
                 && auction.lifecycleStatus() != AuctionLifecycleStatus.CANCELLED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Auction " + auctionId + " is not in UNSOLD or CANCELLED status");
+                    "Auction " + auctionRef + " is not in UNSOLD or CANCELLED status");
         }
 
-        auctionRepository.save(new Auction(
-                auction.id(), auction.itemId(), auction.title(), auction.description(), auction.category(),
-                auction.auctionType(), AuctionLifecycleStatus.ARCHIVED, auction.startPrice(), auction.currentValue(),
-                auction.currency(), auction.startsAt(), auction.endsAt(), auction.comment(), auction.serialNumber(),
-                auction.createdAt()
-        ));
+        appendVersion(auction, AuctionLifecycleStatus.ARCHIVED, auction.startPrice(), auction.currentValue(),
+                auction.startsAt(), auction.endsAt());
     }
 
-    public void extend(Long auctionId, Instant endsAt) {
-        Auction auction = findById(auctionId);
+    public void extend(Long auctionRef, Instant endsAt, BigDecimal startPrice) {
+        Auction auction = findById(auctionRef);
 
         if (auction.lifecycleStatus() != AuctionLifecycleStatus.UNSOLD) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Auction " + auctionId + " is not in UNSOLD status");
+                    "Auction " + auctionRef + " is not in UNSOLD status");
         }
 
         Instant resolvedEndsAt = endsAt != null ? endsAt : Instant.now(clock).plus(Duration.ofDays(30));
+        // An UNSOLD auction has no active bids, so start price and current value move together; a blank
+        // startPrice keeps the existing one (resolvedStartPrice == old startPrice == old currentValue).
+        BigDecimal resolvedStartPrice = startPrice != null ? startPrice : auction.startPrice();
+        if (resolvedStartPrice.signum() < 0) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Start price must not be negative");
+        }
 
-        auctionRepository.save(new Auction(
-                auction.id(), auction.itemId(), auction.title(), auction.description(), auction.category(),
-                auction.auctionType(), AuctionLifecycleStatus.ACTIVE, auction.startPrice(), auction.currentValue(),
-                auction.currency(), auction.startsAt(), resolvedEndsAt, auction.comment(), auction.serialNumber(),
-                auction.createdAt()
-        ));
+        appendVersion(auction, AuctionLifecycleStatus.ACTIVE, resolvedStartPrice, resolvedStartPrice,
+                auction.startsAt(), resolvedEndsAt);
     }
 
-    public void cancel(Long auctionId) {
-        Auction auction = findById(auctionId);
+    public void cancel(Long auctionRef) {
+        Auction auction = findById(auctionRef);
 
         if (auction.lifecycleStatus() != AuctionLifecycleStatus.DRAFT
                 && auction.lifecycleStatus() != AuctionLifecycleStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Auction " + auctionId + " is not in DRAFT or ACTIVE status");
+                    "Auction " + auctionRef + " is not in DRAFT or ACTIVE status");
         }
 
-        auctionRepository.save(new Auction(
-                auction.id(), auction.itemId(), auction.title(), auction.description(), auction.category(),
-                auction.auctionType(), AuctionLifecycleStatus.CANCELLED, auction.startPrice(), auction.currentValue(),
-                auction.currency(), auction.startsAt(), auction.endsAt(), auction.comment(), auction.serialNumber(),
-                auction.createdAt()
-        ));
+        appendVersion(auction, AuctionLifecycleStatus.CANCELLED, auction.startPrice(), auction.currentValue(),
+                auction.startsAt(), auction.endsAt());
     }
 
     public void finalizeUnsold() {
         Instant now = Instant.now(clock);
-        for (Auction auction : auctionRepository.findByLifecycleStatusAndEndsAtBefore(AuctionLifecycleStatus.ACTIVE, now)) {
-            if (bidRepository.existsActiveBidForAuction(auction.id())) {
+        for (Auction auction : auctionRepository.findCurrentByLifecycleStatusAndEndsAtBefore(
+                AuctionLifecycleStatus.ACTIVE.name(), now)) {
+            if (bidRepository.existsActiveBidForAuction(auction.auctionRef())) {
                 continue;
             }
-            auctionRepository.save(new Auction(
-                    auction.id(), auction.itemId(), auction.title(), auction.description(), auction.category(),
-                    auction.auctionType(), AuctionLifecycleStatus.UNSOLD, auction.startPrice(), auction.currentValue(),
-                    auction.currency(), auction.startsAt(), auction.endsAt(), auction.comment(), auction.serialNumber(),
-                    auction.createdAt()
-            ));
+            appendVersion(auction, AuctionLifecycleStatus.UNSOLD, auction.startPrice(), auction.currentValue(),
+                    auction.startsAt(), auction.endsAt());
         }
+    }
+
+    /**
+     * Appends a new version row for the auction (same auction_ref, null @Id ⇒ INSERT), carrying every
+     * field forward except the ones a transition changes.
+     */
+    private void appendVersion(Auction auction, AuctionLifecycleStatus status, BigDecimal startPrice,
+                               BigDecimal currentValue, Instant startsAt, Instant endsAt) {
+        auctionRepository.save(new Auction(
+                null, auction.auctionRef(), auction.itemId(), auction.title(), auction.description(),
+                auction.category(), auction.auctionType(), status, startPrice, currentValue,
+                auction.currency(), startsAt, endsAt, auction.comment(), auction.serialNumber(),
+                Instant.now(clock)));
     }
 
 }

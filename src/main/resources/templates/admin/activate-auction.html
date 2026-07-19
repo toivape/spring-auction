@@ -17,7 +17,7 @@
                 <span th:text="${auction.itemId}"></span> — <span th:text="${auction.description}"></span>
             </p>
 
-            <form th:action="@{/admin/auctions/{id}/activate(id=${auction.id})}" method="post">
+            <form th:action="@{/admin/auctions/{id}/activate(id=${auction.auctionRef})}" method="post">
                 <div class="field">
                     <label for="startsAt">Start date</label>
                     <input type="datetime-local" id="startsAt" name="startsAt">

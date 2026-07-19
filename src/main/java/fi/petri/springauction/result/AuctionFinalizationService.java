@@ -54,11 +54,12 @@ public class AuctionFinalizationService {
      */
     public void finalizeEndedAuctions() {
         Instant now = Instant.now(clock);
-        for (Auction auction : auctionRepository.findByLifecycleStatusAndEndsAtBefore(AuctionLifecycleStatus.ACTIVE, now)) {
+        for (Auction auction : auctionRepository.findCurrentByLifecycleStatusAndEndsAtBefore(
+                AuctionLifecycleStatus.ACTIVE.name(), now)) {
             try {
-                self.finalizeAuction(auction.id());
+                self.finalizeAuction(auction.auctionRef());
             } catch (Exception e) {
-                log.warn("Finalization failed for auction {}: {}", auction.id(), e.getMessage(), e);
+                log.warn("Finalization failed for auction {}: {}", auction.auctionRef(), e.getMessage(), e);
             }
         }
     }
@@ -70,7 +71,7 @@ public class AuctionFinalizationService {
      */
     @Transactional
     public void finalizeAuction(Long auctionId) {
-        Auction auction = auctionRepository.findById(auctionId).orElse(null);
+        Auction auction = auctionRepository.findCurrentByRef(auctionId).orElse(null);
         if (auction == null || auction.lifecycleStatus() != AuctionLifecycleStatus.ACTIVE) {
             return;
         }
@@ -92,10 +93,10 @@ public class AuctionFinalizationService {
                 Instant.now(clock), null, null, null, null, null));
 
         auctionRepository.save(new Auction(
-                auction.id(), auction.itemId(), auction.title(), auction.description(), auction.category(),
+                null, auction.auctionRef(), auction.itemId(), auction.title(), auction.description(), auction.category(),
                 auction.auctionType(), AuctionLifecycleStatus.SOLD, auction.startPrice(), auction.currentValue(),
                 auction.currency(), auction.startsAt(), auction.endsAt(), auction.comment(), auction.serialNumber(),
-                auction.createdAt()));
+                Instant.now(clock)));
 
         log.info("Finalized auction {} as SOLD: winner={}, price={}", auctionId, outcome.winnerUserId(), outcome.price());
 

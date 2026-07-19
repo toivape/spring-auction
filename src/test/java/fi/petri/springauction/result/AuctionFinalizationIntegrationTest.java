@@ -46,7 +46,7 @@ class AuctionFinalizationIntegrationTest {
 
     private Auction endedAuction(String itemId, String auctionType, String startPrice) {
         return auctionRepository.save(new Auction(
-                null, itemId, "Ended auction", "Dell laptop", "laptops", auctionType,
+                null, auctionRepository.nextAuctionRef(), itemId, "Ended auction", "Dell laptop", "laptops", auctionType,
                 AuctionLifecycleStatus.ACTIVE, new BigDecimal(startPrice), new BigDecimal(startPrice),
                 "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60),
                 null, null, Instant.now()));
@@ -72,17 +72,17 @@ class AuctionFinalizationIntegrationTest {
         Auction auction = endedAuction("FIN-1", "FIRST_PRICE", "100");
         User a = user();
         User b = user();
-        placeBid(auction.id(), a.id(), "150");
-        placeBid(auction.id(), b.id(), "220");
+        placeBid(auction.auctionRef(), a.id(), "150");
+        placeBid(auction.auctionRef(), b.id(), "220");
 
-        finalizationService.finalizeAuction(auction.id());
+        finalizationService.finalizeAuction(auction.auctionRef());
 
-        AuctionResult result = resultRepository.findByAuctionId(auction.id()).orElseThrow();
+        AuctionResult result = resultRepository.findByAuctionId(auction.auctionRef()).orElseThrow();
         assertEquals(ResultStatus.SOLD, result.resultStatus());
         assertEquals(b.id(), result.winnerUserId());
         assertEquals(0, new BigDecimal("220").compareTo(result.winningPrice()));
         assertEquals(AuctionLifecycleStatus.SOLD,
-                auctionRepository.findById(auction.id()).orElseThrow().lifecycleStatus());
+                auctionRepository.findCurrentByRef(auction.auctionRef()).orElseThrow().lifecycleStatus());
     }
 
     @Test
@@ -90,12 +90,12 @@ class AuctionFinalizationIntegrationTest {
         Auction auction = endedAuction("FIN-2", "SECOND_PRICE", "100");
         User a = user();
         User b = user();
-        placeBid(auction.id(), a.id(), "150");
-        placeBid(auction.id(), b.id(), "220");
+        placeBid(auction.auctionRef(), a.id(), "150");
+        placeBid(auction.auctionRef(), b.id(), "220");
 
-        finalizationService.finalizeAuction(auction.id());
+        finalizationService.finalizeAuction(auction.auctionRef());
 
-        AuctionResult result = resultRepository.findByAuctionId(auction.id()).orElseThrow();
+        AuctionResult result = resultRepository.findByAuctionId(auction.auctionRef()).orElseThrow();
         assertEquals(b.id(), result.winnerUserId());
         assertEquals(0, new BigDecimal("150").compareTo(result.winningPrice()));
     }
@@ -105,13 +105,13 @@ class AuctionFinalizationIntegrationTest {
         Auction auction = endedAuction("FIN-3", "FIRST_PRICE", "100");
         User a = user();
         User b = user();
-        placeBid(auction.id(), a.id(), "150");
-        placeBid(auction.id(), a.id(), "300"); // a raises to 300 (new row) — this is what counts
-        placeBid(auction.id(), b.id(), "220");
+        placeBid(auction.auctionRef(), a.id(), "150");
+        placeBid(auction.auctionRef(), a.id(), "300"); // a raises to 300 (new row) — this is what counts
+        placeBid(auction.auctionRef(), b.id(), "220");
 
-        finalizationService.finalizeAuction(auction.id());
+        finalizationService.finalizeAuction(auction.auctionRef());
 
-        AuctionResult result = resultRepository.findByAuctionId(auction.id()).orElseThrow();
+        AuctionResult result = resultRepository.findByAuctionId(auction.auctionRef()).orElseThrow();
         assertEquals(a.id(), result.winnerUserId());
         assertEquals(0, new BigDecimal("300").compareTo(result.winningPrice()));
     }
@@ -120,30 +120,30 @@ class AuctionFinalizationIntegrationTest {
     void auctionWithOnlyWithdrawnBidsIsLeftForTheUnsoldJob() {
         Auction auction = endedAuction("FIN-4", "FIRST_PRICE", "100");
         User a = user();
-        placeBid(auction.id(), a.id(), "150");
-        withdraw(auction.id(), a.id(), "150");
+        placeBid(auction.auctionRef(), a.id(), "150");
+        withdraw(auction.auctionRef(), a.id(), "150");
 
-        finalizationService.finalizeAuction(auction.id());
+        finalizationService.finalizeAuction(auction.auctionRef());
 
-        assertTrue(resultRepository.findByAuctionId(auction.id()).isEmpty());
+        assertTrue(resultRepository.findByAuctionId(auction.auctionRef()).isEmpty());
         assertEquals(AuctionLifecycleStatus.ACTIVE,
-                auctionRepository.findById(auction.id()).orElseThrow().lifecycleStatus());
+                auctionRepository.findCurrentByRef(auction.auctionRef()).orElseThrow().lifecycleStatus());
     }
 
     @Test
     void finalizingTwiceWritesOneResultAndIsANoOpTheSecondTime() {
         Auction auction = endedAuction("FIN-5", "FIRST_PRICE", "100");
         User a = user();
-        placeBid(auction.id(), a.id(), "150");
+        placeBid(auction.auctionRef(), a.id(), "150");
 
-        finalizationService.finalizeAuction(auction.id());
-        finalizationService.finalizeAuction(auction.id());
+        finalizationService.finalizeAuction(auction.auctionRef());
+        finalizationService.finalizeAuction(auction.auctionRef());
 
         long results = resultRepository.findAll().stream()
-                .filter(r -> r.auctionId().equals(auction.id())).count();
+                .filter(r -> r.auctionId().equals(auction.auctionRef())).count();
         assertEquals(1, results);
         assertEquals(AuctionLifecycleStatus.SOLD,
-                auctionRepository.findById(auction.id()).orElseThrow().lifecycleStatus());
+                auctionRepository.findCurrentByRef(auction.auctionRef()).orElseThrow().lifecycleStatus());
     }
 
     @Test
@@ -151,15 +151,15 @@ class AuctionFinalizationIntegrationTest {
         Auction auction = endedAuction("FIN-6", "SECOND_PRICE", "100");
         User a = user();
         User b = user();
-        placeBid(auction.id(), a.id(), "150");
-        placeBid(auction.id(), b.id(), "180");
+        placeBid(auction.auctionRef(), a.id(), "150");
+        placeBid(auction.auctionRef(), b.id(), "180");
 
         finalizationService.finalizeEndedAuctions();
 
         assertEquals(AuctionLifecycleStatus.SOLD,
-                auctionRepository.findById(auction.id()).orElseThrow().lifecycleStatus());
+                auctionRepository.findCurrentByRef(auction.auctionRef()).orElseThrow().lifecycleStatus());
         assertEquals(0, new BigDecimal("150").compareTo(
-                resultRepository.findByAuctionId(auction.id()).orElseThrow().winningPrice()));
+                resultRepository.findByAuctionId(auction.auctionRef()).orElseThrow().winningPrice()));
     }
 
 }

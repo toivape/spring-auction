@@ -20,6 +20,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -64,6 +65,9 @@ class AuctionEmailNotificationIntegrationTest {
     @Autowired
     UserRepository userRepository;
 
+    @Autowired
+    JdbcClient jdbcClient;
+
     private final List<Auction> createdAuctions = new ArrayList<>();
     private final List<Bid> createdBids = new ArrayList<>();
     private final List<User> createdUsers = new ArrayList<>();
@@ -77,15 +81,18 @@ class AuctionEmailNotificationIntegrationTest {
 
     @AfterEach
     void cleanup() {
-        createdAuctions.forEach(a -> resultRepository.findByAuctionId(a.id()).ifPresent(resultRepository::delete));
+        // Append-only: finalization adds new version rows (same auction_ref), so purge every version by ref.
+        createdAuctions.forEach(a -> {
+            resultRepository.findByAuctionId(a.auctionRef()).ifPresent(resultRepository::delete);
+            jdbcClient.sql("DELETE FROM auction WHERE auction_ref = :ref").param("ref", a.auctionRef()).update();
+        });
         bidRepository.deleteAll(createdBids);
-        auctionRepository.deleteAll(createdAuctions);
         userRepository.deleteAll(createdUsers);
     }
 
     private Auction endedAuction(String itemId, String startPrice) {
         Auction auction = auctionRepository.save(new Auction(
-                null, itemId, "Dell laptop", "A laptop", "laptops", "FIRST_PRICE",
+                null, auctionRepository.nextAuctionRef(), itemId, "Dell laptop", "A laptop", "laptops", "FIRST_PRICE",
                 AuctionLifecycleStatus.ACTIVE, new BigDecimal(startPrice), new BigDecimal(startPrice),
                 "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60),
                 null, null, Instant.now()));
@@ -115,11 +122,11 @@ class AuctionEmailNotificationIntegrationTest {
         User winner = user();
         User loser1 = user();
         User loser2 = user();
-        placeBid(auction.id(), winner.id(), "300");
-        placeBid(auction.id(), loser1.id(), "150");
-        placeBid(auction.id(), loser2.id(), "200");
+        placeBid(auction.auctionRef(), winner.id(), "300");
+        placeBid(auction.auctionRef(), loser1.id(), "150");
+        placeBid(auction.auctionRef(), loser2.id(), "200");
 
-        finalizationService.finalizeAuction(auction.id());
+        finalizationService.finalizeAuction(auction.auctionRef());
 
         ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
         verify(mailSender, times(3)).send(captor.capture());
@@ -131,7 +138,7 @@ class AuctionEmailNotificationIntegrationTest {
         assertEquals("Auction won", winMail.getSubject());
         String winBody = contentOf(winMail);
         assertTrue(winBody.contains("Dell laptop"), winBody);
-        assertTrue(winBody.contains("http://localhost:8080/auctions/" + auction.id()), winBody);
+        assertTrue(winBody.contains("http://localhost:8080/auctions/" + auction.auctionRef()), winBody);
         assertTrue(winBody.contains("300.00 EUR"), winBody);
 
         assertEquals(
@@ -143,10 +150,10 @@ class AuctionEmailNotificationIntegrationTest {
     void reFinalizingSendsNothingTheSecondTime() {
         Auction auction = endedAuction("MAIL-2", "100");
         User winner = user();
-        placeBid(auction.id(), winner.id(), "150");
+        placeBid(auction.auctionRef(), winner.id(), "150");
 
-        finalizationService.finalizeAuction(auction.id());
-        finalizationService.finalizeAuction(auction.id());
+        finalizationService.finalizeAuction(auction.auctionRef());
+        finalizationService.finalizeAuction(auction.auctionRef());
 
         verify(mailSender, times(1)).send(any(MimeMessage.class));
     }

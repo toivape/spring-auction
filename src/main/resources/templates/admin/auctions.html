@@ -54,7 +54,7 @@
                         </thead>
                         <tbody>
                         <tr th:each="auction : ${auctions}" th:with="status=${auction.lifecycleStatus.name()}">
-                            <td class="cell-mono cell-muted" th:text="${auction.id}"></td>
+                            <td class="cell-mono cell-muted" th:text="${auction.auctionRef}"></td>
                             <td class="cell-mono" th:text="${auction.itemId}"></td>
                             <td class="cell-title" th:text="${auction.title != null ? auction.title : '—'}"></td>
                             <td th:text="${auction.category}"></td>
@@ -69,17 +69,17 @@
                                           : 'Not scheduled'"></td>
                             <td class="cell-actions">
                                 <a th:if="${status == 'DRAFT'}"
-                                   th:href="@{/admin/auctions/{id}/activate(id=${auction.id})}"
+                                   th:href="@{/admin/auctions/{id}/activate(id=${auction.auctionRef})}"
                                    class="btn-ghost btn-activate action-inline">Activate</a>
                                 <a th:if="${status == 'UNSOLD'}"
-                                   th:href="@{/admin/auctions/{id}/extend(id=${auction.id})}"
+                                   th:href="@{/admin/auctions/{id}/extend(id=${auction.auctionRef})}"
                                    class="btn-ghost btn-activate action-inline">Extend</a>
                                 <form th:if="${status == 'DRAFT' or status == 'ACTIVE'}"
-                                      th:action="@{/admin/auctions/{id}/cancel(id=${auction.id})}" method="post" class="action-inline">
+                                      th:action="@{/admin/auctions/{id}/cancel(id=${auction.auctionRef})}" method="post" class="action-inline">
                                     <button type="submit" class="btn-ghost btn-archive">Cancel</button>
                                 </form>
                                 <form th:if="${status == 'UNSOLD' or status == 'CANCELLED'}"
-                                      th:action="@{/admin/auctions/{id}/archive(id=${auction.id})}" method="post" class="action-inline">
+                                      th:action="@{/admin/auctions/{id}/archive(id=${auction.auctionRef})}" method="post" class="action-inline">
                                     <button type="submit" class="btn-ghost btn-archive">Archive</button>
                                 </form>
                             </td>

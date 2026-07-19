@@ -9,6 +9,7 @@ import java.time.Instant;
 @Table("auction")
 public record Auction(
         @Id Long id,
+        Long auctionRef,
         String itemId,
         String title,
         String description,

@@ -65,7 +65,7 @@
                     <p class="notice notice--error" th:case="*">Bidding is not open for this auction.</p>
                 </div>
 
-                <form th:if="${isOpen}" th:action="@{/auctions/{id}/bids(id=${auction.id})}" method="post">
+                <form th:if="${isOpen}" th:action="@{/auctions/{id}/bids(id=${auction.auctionRef})}" method="post">
                     <div class="field">
                         <label for="amount">Your bid</label>
                         <input type="number" id="amount" name="amount" step="0.01"
@@ -74,7 +74,7 @@
                     </div>
                     <button type="submit" class="btn-primary" th:text="${myBid != null ? 'Update bid' : 'Place bid'}"></button>
                 </form>
-                <form th:if="${isOpen and myBid != null}" th:action="@{/auctions/{id}/bids/withdraw(id=${auction.id})}" method="post" class="form-spaced">
+                <form th:if="${isOpen and myBid != null}" th:action="@{/auctions/{id}/bids/withdraw(id=${auction.auctionRef})}" method="post" class="form-spaced">
                     <button type="submit" class="btn-ghost btn-archive">Withdraw bid</button>
                 </form>
 
