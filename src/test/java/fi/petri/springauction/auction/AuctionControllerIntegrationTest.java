@@ -329,6 +329,68 @@ class AuctionControllerIntegrationTest {
     }
 
     @Test
+    void winnerPayingStampsPaidAtAndShowsPaymentReceived() throws Exception {
+        User winner = bidderUser();
+        Auction auction = soldAuction("IB-P1", winner.id(), "300.00");
+
+        mockMvc.perform(post("/auctions/{id}/pay", auction.auctionRef())
+                        .with(asBidder())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auctions/" + auction.auctionRef()));
+
+        assertTrue(resultRepository.findByAuctionId(auction.auctionRef()).orElseThrow().paidAt() != null);
+
+        mockMvc.perform(get("/auctions/{id}", auction.auctionRef()).with(asBidder()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Payment received")));
+    }
+
+    @Test
+    void nonWinnerCannotPay() throws Exception {
+        bidderUser();
+        User otherWinner = userRepository.save(
+                new User(null, "other-subject", "other@example.com", "Other", UserRole.USER, Instant.now()));
+        Auction auction = soldAuction("IB-P2", otherWinner.id(), "300.00");
+
+        mockMvc.perform(post("/auctions/{id}/pay", auction.auctionRef())
+                        .with(asBidder())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().isForbidden());
+
+        assertTrue(resultRepository.findByAuctionId(auction.auctionRef()).orElseThrow().paidAt() == null);
+    }
+
+    @Test
+    void payingTwiceIsIdempotent() throws Exception {
+        User winner = bidderUser();
+        Auction auction = soldAuction("IB-P3", winner.id(), "300.00");
+
+        mockMvc.perform(post("/auctions/{id}/pay", auction.auctionRef())
+                        .with(asBidder())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().is3xxRedirection());
+        Instant firstPaidAt = resultRepository.findByAuctionId(auction.auctionRef()).orElseThrow().paidAt();
+
+        mockMvc.perform(post("/auctions/{id}/pay", auction.auctionRef())
+                        .with(asBidder())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        assertEquals(firstPaidAt, resultRepository.findByAuctionId(auction.auctionRef()).orElseThrow().paidAt());
+    }
+
+    @Test
+    void payingAnAuctionWithNoResultReturnsNotFound() throws Exception {
+        Auction auction = activeAuction("IB-P4", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
+
+        mockMvc.perform(post("/auctions/{id}/pay", auction.auctionRef())
+                        .with(asBidder())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void detailShowsUnsoldWhenTheAuctionEndedWithNoSale() throws Exception {
         Auction auction = auctionRepository.save(new Auction(
                 null, auctionRepository.nextAuctionRef(), "IB-R3", "Unsold auction", "Dell laptop", "laptops", "FIRST_PRICE",

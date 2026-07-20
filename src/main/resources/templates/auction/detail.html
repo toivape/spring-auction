@@ -59,6 +59,9 @@
                             <strong th:text="|${#numbers.formatDecimal(outcome.winningPrice, 1, 2)} ${auction.currency}|"></strong>
                         </p>
                         <p class="notice notice--success" th:if="${outcome.paid}">Payment received.</p>
+                        <form th:unless="${outcome.paid}" th:action="@{/auctions/{id}/pay(id=${auction.auctionRef})}" method="post">
+                            <button type="submit" class="btn-primary">Pay now</button>
+                        </form>
                     </div>
                     <p class="notice notice--info" th:case="'LOST'">This auction has ended. You did not win.</p>
                     <p class="notice notice--info" th:case="'UNSOLD'">This auction ended without a sale.</p>
