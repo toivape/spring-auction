@@ -51,7 +51,7 @@ public class AuctionResultService {
     public void markPaid(Long auctionRef, String googleSubjectId) {
         Long userId = userRepository.findByGoogleSubjectId(googleSubjectId)
                 .map(User::id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not provisioned: " + googleSubjectId));
 
         AuctionResult result = resultRepository.findByAuctionId(auctionRef)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
