@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -74,11 +75,12 @@ public class SecurityConfig {
     public SecurityFilterChain appChain(HttpSecurity http, CustomOidcUserService customOidcUserService) throws Exception {
         http
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/css/**", "/webjars/**", "/favicon.ico").permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/webjars/**", "/favicon.ico").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/").permitAll()
                         .anyRequest().hasRole("USER"))
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.oidcUserService(customOidcUserService))
-                        .defaultSuccessUrl("/", true))
+                        .defaultSuccessUrl("/", false))
                 .logout(logout -> logout
                         .logoutSuccessUrl("/")
                         .permitAll());

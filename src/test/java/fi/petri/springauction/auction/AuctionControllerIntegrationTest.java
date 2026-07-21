@@ -105,9 +105,23 @@ class AuctionControllerIntegrationTest {
     }
 
     @Test
-    void anonymousRequestToRootRedirectsToGoogleLogin() throws Exception {
+    void anonymousCanViewMarketplace() throws Exception {
+        Auction active = activeAuction("IB-PUB1", Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600));
+
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(active.title())))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Log in")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Log out"))));
+    }
+
+    @Test
+    void anonymousAuctionDetailRedirectsToGoogleLogin() throws Exception {
+        // The authorization filter redirects before the controller runs, so the row needn't exist.
+        // Uses HttpClient (not MockMvc) because the mock servlet env doesn't reliably enforce the
+        // catch-all oauth2Login redirect for the authenticated-only branch.
         HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
-        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/")).GET().build();
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/auctions/123")).GET().build();
 
         HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
 
