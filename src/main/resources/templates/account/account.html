@@ -26,7 +26,7 @@
                 <span class="auction-count"
                       th:text="${#lists.size(account.ongoing)} + ' ongoing · ' + ${#lists.size(account.won)} + ' won · ' + ${#lists.size(account.lost)} + ' lost'"></span>
             </div>
-            <p class="account-total" th:unless="${#lists.isEmpty(account.won)}"
+            <p class="account-total" th:if="${account.wonCurrency != null}"
                th:text="'Total won: ' + ${#numbers.formatDecimal(account.totalWon, 1, 2)} + ' ' + ${account.wonCurrency}"></p>
 
             <!-- Ongoing -->

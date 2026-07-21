@@ -21,7 +21,8 @@ public interface AuctionResultRepository extends ListCrudRepository<AuctionResul
             SELECT r.* FROM auction_result r
             WHERE r.result_status = 'SOLD'
               AND r.invalidated_at IS NULL
-              AND (r.winner_user_id IS NULL OR r.winner_user_id <> :userId)
+              AND r.winner_user_id IS NOT NULL
+              AND r.winner_user_id <> :userId
               AND r.auction_id IN (SELECT DISTINCT b.auction_id FROM bid b WHERE b.user_id = :userId)
             """)
     List<AuctionResult> findLostResultsForUser(@Param("userId") Long userId);
