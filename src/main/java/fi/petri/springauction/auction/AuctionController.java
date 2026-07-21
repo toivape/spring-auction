@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 
 @Controller
 @Conditional(GoogleOAuthConfiguredCondition.class)
@@ -38,10 +39,13 @@ public class AuctionController {
 
     @GetMapping("/")
     public String marketplace(@AuthenticationPrincipal OidcUser principal, Model model) {
-        requireAuthenticated(principal);
-        model.addAttribute("displayName", displayName(principal));
+        boolean authenticated = principal != null;
+        model.addAttribute("authenticated", authenticated);
+        model.addAttribute("displayName", authenticated ? displayName(principal) : null);
         model.addAttribute("auctions", auctionService.findActive());
-        model.addAttribute("myBids", bidService.findMyBidsByAuctionId(principal.getSubject()));
+        model.addAttribute("myBids", authenticated
+                ? bidService.findMyBidsByAuctionId(principal.getSubject())
+                : Map.of());
         return "auction/marketplace";
     }
 

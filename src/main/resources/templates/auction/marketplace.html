@@ -11,12 +11,13 @@
 <div class="shell">
     <header class="shell-header">
         <span class="wordmark">Manifest <span class="wordmark-sub">— Auctions</span></span>
-        <div class="who">
+        <div class="who" th:if="${authenticated}">
             <span class="who-email" th:text="${displayName}"></span>
             <form th:action="@{/logout}" method="post" class="logout-form">
                 <button type="submit" class="link-button">Log out</button>
             </form>
         </div>
+        <a th:unless="${authenticated}" class="link-button" th:href="@{/oauth2/authorization/google}">Log in with Google</a>
     </header>
     <main class="shell-main">
         <div class="shell-container">
