@@ -4,6 +4,7 @@ import fi.petri.springauction.TestcontainersConfiguration;
 import fi.petri.springauction.auction.Auction;
 import fi.petri.springauction.auction.AuctionLifecycleStatus;
 import fi.petri.springauction.auction.AuctionRepository;
+import fi.petri.springauction.auction.AuctionType;
 import fi.petri.springauction.security.ApiKeyAuthenticationFilter;
 import fi.petri.springauction.security.IngestionSecurityProperties;
 import org.junit.jupiter.api.Test;
@@ -78,7 +79,7 @@ class IngestControllerIntegrationTest {
         assertEquals("SN-998877", saved.serialNumber());
         assertEquals(AuctionLifecycleStatus.DRAFT, saved.lifecycleStatus());
         assertNull(saved.title());
-        assertNull(saved.auctionType());
+        assertEquals(AuctionType.FIRST_PRICE, saved.auctionType());
         assertNull(saved.endsAt());
     }
 

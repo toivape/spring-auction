@@ -43,7 +43,7 @@ public class AuctionService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Auction not found: " + auctionRef));
     }
 
-    public void activate(Long auctionRef, Instant startsAt, Instant endsAt) {
+    public void activate(Long auctionRef, AuctionType auctionType, Instant startsAt, Instant endsAt) {
         Auction auction = findById(auctionRef);
 
         if (auction.lifecycleStatus() != AuctionLifecycleStatus.DRAFT) {
@@ -51,11 +51,12 @@ public class AuctionService {
                     "Auction " + auctionRef + " is not in DRAFT status");
         }
 
+        AuctionType resolvedType = auctionType != null ? auctionType : AuctionType.FIRST_PRICE;
         Instant resolvedStartsAt = startsAt != null ? startsAt : Instant.now(clock);
         Instant resolvedEndsAt = endsAt != null ? endsAt : resolvedStartsAt.plus(Duration.ofDays(30));
 
-        appendVersion(auction, AuctionLifecycleStatus.ACTIVE, auction.startPrice(), auction.currentValue(),
-                resolvedStartsAt, resolvedEndsAt);
+        appendVersion(auction, resolvedType, AuctionLifecycleStatus.ACTIVE, auction.startPrice(),
+                auction.currentValue(), resolvedStartsAt, resolvedEndsAt);
     }
 
     public void archive(Long auctionRef) {
@@ -67,8 +68,8 @@ public class AuctionService {
                     "Auction " + auctionRef + " is not in UNSOLD or CANCELLED status");
         }
 
-        appendVersion(auction, AuctionLifecycleStatus.ARCHIVED, auction.startPrice(), auction.currentValue(),
-                auction.startsAt(), auction.endsAt());
+        appendVersion(auction, auction.auctionType(), AuctionLifecycleStatus.ARCHIVED, auction.startPrice(),
+                auction.currentValue(), auction.startsAt(), auction.endsAt());
     }
 
     public void extend(Long auctionRef, Instant endsAt, BigDecimal startPrice) {
@@ -87,8 +88,8 @@ public class AuctionService {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Start price must not be negative");
         }
 
-        appendVersion(auction, AuctionLifecycleStatus.ACTIVE, resolvedStartPrice, resolvedStartPrice,
-                auction.startsAt(), resolvedEndsAt);
+        appendVersion(auction, auction.auctionType(), AuctionLifecycleStatus.ACTIVE, resolvedStartPrice,
+                resolvedStartPrice, auction.startsAt(), resolvedEndsAt);
     }
 
     public void cancel(Long auctionRef) {
@@ -100,8 +101,8 @@ public class AuctionService {
                     "Auction " + auctionRef + " is not in DRAFT or ACTIVE status");
         }
 
-        appendVersion(auction, AuctionLifecycleStatus.CANCELLED, auction.startPrice(), auction.currentValue(),
-                auction.startsAt(), auction.endsAt());
+        appendVersion(auction, auction.auctionType(), AuctionLifecycleStatus.CANCELLED, auction.startPrice(),
+                auction.currentValue(), auction.startsAt(), auction.endsAt());
     }
 
     public void finalizeUnsold() {
@@ -111,8 +112,8 @@ public class AuctionService {
             if (bidRepository.existsActiveBidForAuction(auction.auctionRef())) {
                 continue;
             }
-            appendVersion(auction, AuctionLifecycleStatus.UNSOLD, auction.startPrice(), auction.currentValue(),
-                    auction.startsAt(), auction.endsAt());
+            appendVersion(auction, auction.auctionType(), AuctionLifecycleStatus.UNSOLD, auction.startPrice(),
+                    auction.currentValue(), auction.startsAt(), auction.endsAt());
         }
     }
 
@@ -120,11 +121,11 @@ public class AuctionService {
      * Appends a new version row for the auction (same auction_ref, null @Id ⇒ INSERT), carrying every
      * field forward except the ones a transition changes.
      */
-    private void appendVersion(Auction auction, AuctionLifecycleStatus status, BigDecimal startPrice,
-                               BigDecimal currentValue, Instant startsAt, Instant endsAt) {
+    private void appendVersion(Auction auction, AuctionType auctionType, AuctionLifecycleStatus status,
+                               BigDecimal startPrice, BigDecimal currentValue, Instant startsAt, Instant endsAt) {
         auctionRepository.save(new Auction(
                 null, auction.auctionRef(), auction.itemId(), auction.title(), auction.description(),
-                auction.category(), auction.auctionType(), status, startPrice, currentValue,
+                auction.category(), auctionType, status, startPrice, currentValue,
                 auction.currency(), startsAt, endsAt, auction.comment(), auction.serialNumber(),
                 Instant.now(clock)));
     }

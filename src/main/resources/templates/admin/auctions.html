@@ -45,6 +45,7 @@
                             <th>Item ID</th>
                             <th>Title</th>
                             <th>Category</th>
+                            <th>Type</th>
                             <th>Status</th>
                             <th>Start price</th>
                             <th>Est. value</th>
@@ -58,6 +59,7 @@
                             <td class="cell-mono" th:text="${auction.itemId}"></td>
                             <td class="cell-title" th:text="${auction.title != null ? auction.title : '—'}"></td>
                             <td th:text="${auction.category}"></td>
+                            <td th:text="${auction.auctionType.displayName()}"></td>
                             <td>
                                 <span class="stamp" th:classappend="'stamp--' + ${status.toLowerCase()}" th:text="${status}"></span>
                             </td>

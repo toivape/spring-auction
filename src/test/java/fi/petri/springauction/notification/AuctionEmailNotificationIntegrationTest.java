@@ -3,6 +3,7 @@ package fi.petri.springauction.notification;
 import fi.petri.springauction.TestcontainersConfiguration;
 import fi.petri.springauction.auction.Auction;
 import fi.petri.springauction.auction.AuctionLifecycleStatus;
+import fi.petri.springauction.auction.AuctionType;
 import fi.petri.springauction.auction.AuctionRepository;
 import fi.petri.springauction.bid.Bid;
 import fi.petri.springauction.bid.BidEventType;
@@ -92,7 +93,7 @@ class AuctionEmailNotificationIntegrationTest {
 
     private Auction endedAuction(String itemId, String startPrice) {
         Auction auction = auctionRepository.save(new Auction(
-                null, auctionRepository.nextAuctionRef(), itemId, "Dell laptop", "A laptop", "laptops", "FIRST_PRICE",
+                null, auctionRepository.nextAuctionRef(), itemId, "Dell laptop", "A laptop", "laptops", AuctionType.FIRST_PRICE,
                 AuctionLifecycleStatus.ACTIVE, new BigDecimal(startPrice), new BigDecimal(startPrice),
                 "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60),
                 null, null, Instant.now()));

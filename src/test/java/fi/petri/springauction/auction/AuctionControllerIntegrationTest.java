@@ -68,14 +68,14 @@ class AuctionControllerIntegrationTest {
 
     private Auction activeAuction(String itemId, Instant startsAt, Instant endsAt) {
         return auctionRepository.save(new Auction(
-                null, auctionRepository.nextAuctionRef(), itemId, "Active auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                null, auctionRepository.nextAuctionRef(), itemId, "Active auction", "Dell laptop", "laptops", AuctionType.FIRST_PRICE,
                 AuctionLifecycleStatus.ACTIVE, BigDecimal.valueOf(100), BigDecimal.valueOf(150),
                 "EUR", startsAt, endsAt, null, null, Instant.now()));
     }
 
     private Auction draftAuction(String itemId) {
         return auctionRepository.save(new Auction(
-                null, auctionRepository.nextAuctionRef(), itemId, null, "Dell laptop", "laptops", null,
+                null, auctionRepository.nextAuctionRef(), itemId, null, "Dell laptop", "laptops", AuctionType.FIRST_PRICE,
                 AuctionLifecycleStatus.DRAFT, BigDecimal.valueOf(100), BigDecimal.valueOf(150),
                 "EUR", null, null, null, null, Instant.now()));
     }
@@ -94,7 +94,7 @@ class AuctionControllerIntegrationTest {
 
     private Auction soldAuction(String itemId, Long winnerUserId, String price) {
         Auction auction = auctionRepository.save(new Auction(
-                null, auctionRepository.nextAuctionRef(), itemId, "Sold auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                null, auctionRepository.nextAuctionRef(), itemId, "Sold auction", "Dell laptop", "laptops", AuctionType.FIRST_PRICE,
                 AuctionLifecycleStatus.SOLD, BigDecimal.valueOf(100), new BigDecimal(price),
                 "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60),
                 null, null, Instant.now()));
@@ -393,7 +393,7 @@ class AuctionControllerIntegrationTest {
     @Test
     void detailShowsUnsoldWhenTheAuctionEndedWithNoSale() throws Exception {
         Auction auction = auctionRepository.save(new Auction(
-                null, auctionRepository.nextAuctionRef(), "IB-R3", "Unsold auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                null, auctionRepository.nextAuctionRef(), "IB-R3", "Unsold auction", "Dell laptop", "laptops", AuctionType.FIRST_PRICE,
                 AuctionLifecycleStatus.UNSOLD, BigDecimal.valueOf(100), BigDecimal.valueOf(100),
                 "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60),
                 null, null, Instant.now()));

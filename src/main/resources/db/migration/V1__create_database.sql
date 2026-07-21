@@ -28,7 +28,7 @@ CREATE TABLE auction
     title            TEXT,                            -- filled in by admin while editing the draft
     description      TEXT           NOT NULL,
     category         TEXT           NOT NULL,
-    auction_type     TEXT CHECK (auction_type IN ('FIRST_PRICE', 'SECOND_PRICE')), -- filled in by admin while editing the draft
+    auction_type     TEXT           NOT NULL DEFAULT 'FIRST_PRICE' CHECK (auction_type IN ('FIRST_PRICE', 'SECOND_PRICE')), -- chosen by admin on activation
     lifecycle_status TEXT           NOT NULL CHECK (lifecycle_status IN ('DRAFT', 'ACTIVE', 'SOLD', 'UNSOLD', 'CANCELLED', 'ARCHIVED')),
     start_price      NUMERIC(12, 2) NOT NULL,
     current_value    NUMERIC(12, 2) NOT NULL,
@@ -133,6 +133,9 @@ VALUES
     (nextval('auction_ref_seq'), 'TEST-ACTIVE-00010', 'Active test auction 10', 'Seeded active test auction 10', 'test', 'ACTIVE', 1000.00, 1000.00, 'EUR',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day') AT TIME ZONE 'UTC',
      (date_trunc('day', now() AT TIME ZONE 'UTC') - INTERVAL '1 day' + INTERVAL '30 days 23:59:59') AT TIME ZONE 'UTC');
+
+-- Demonstrate the Vickrey path out of the box: one active seed auction is second-price (rest default to first-price).
+UPDATE auction SET auction_type = 'SECOND_PRICE' WHERE item_id = 'TEST-ACTIVE-00002';
 
 -- Unsold auctions: window opened 60 days ago, closed 30 days ago — already ended with no bids.
 INSERT INTO auction (auction_ref, item_id, title, description, category, lifecycle_status, start_price, current_value, currency, starts_at, ends_at)
