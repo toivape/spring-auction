@@ -26,6 +26,19 @@
     color: var(--text-on-ink);
 }
 
+.account-section-title {
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+}
+
+.account-total {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-muted-on-ink);
+    margin: 0 0 0.5rem;
+}
+
 .auction-count {
     font-family: var(--font-mono);
     font-size: 0.75rem;

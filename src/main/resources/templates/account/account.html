@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>My account — Manifest</title>
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+    <link rel="stylesheet" th:href="@{/css/auction.css}">
+</head>
+<body>
+<div class="shell">
+    <header class="shell-header">
+        <span class="wordmark">Manifest <span class="wordmark-sub">— My account</span></span>
+        <div class="who">
+            <a class="link-button" th:href="@{/}">Auctions</a>
+            <span class="who-email" th:text="${displayName}"></span>
+            <form th:action="@{/logout}" method="post" class="logout-form">
+                <button type="submit" class="link-button">Log out</button>
+            </form>
+        </div>
+    </header>
+    <main class="shell-main">
+        <div class="shell-container">
+            <div class="auction-list-header">
+                <h1 class="auction-list-title">My account</h1>
+                <span class="auction-count"
+                      th:text="${#lists.size(account.ongoing)} + ' ongoing · ' + ${#lists.size(account.won)} + ' won · ' + ${#lists.size(account.lost)} + ' lost'"></span>
+            </div>
+            <p class="account-total" th:unless="${#lists.isEmpty(account.won)}"
+               th:text="'Total won: ' + ${#numbers.formatDecimal(account.totalWon, 1, 2)} + ' ' + ${account.wonCurrency}"></p>
+
+            <!-- Ongoing -->
+            <h2 class="auction-list-title account-section-title">Ongoing bids</h2>
+            <p class="empty-state" th:if="${#lists.isEmpty(account.ongoing)}">No ongoing bids.</p>
+            <div class="auction-grid" th:unless="${#lists.isEmpty(account.ongoing)}">
+                <a class="auction-card" th:each="e : ${account.ongoing}" th:href="@{/auctions/{id}(id=${e.auctionRef})}">
+                    <div class="asset-tag-row">
+                        <span th:text="${e.itemId}"></span>
+                    </div>
+                    <div class="tag-perforation"></div>
+                    <h3 class="auction-card-title" th:text="${e.title}"></h3>
+                    <div class="auction-card-foot">
+                        <span class="sealed-badge"
+                              th:text="'Your bid: ' + ${#numbers.formatDecimal(e.myBid, 1, 2)} + ' ' + ${e.currency}"></span>
+                        <div class="dispatch">
+                            <span class="dispatch-label">Closes</span>
+                            <span class="dispatch-clock" th:attr="data-ends-at=${e.endsAt}">—</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Won -->
+            <h2 class="auction-list-title account-section-title">Won</h2>
+            <p class="empty-state" th:if="${#lists.isEmpty(account.won)}">Nothing won yet.</p>
+            <div class="auction-grid" th:unless="${#lists.isEmpty(account.won)}">
+                <div class="auction-card" th:each="e : ${account.won}">
+                    <a class="asset-tag-row" th:href="@{/auctions/{id}(id=${e.auctionRef})}">
+                        <span th:text="${e.itemId}"></span>
+                    </a>
+                    <div class="tag-perforation"></div>
+                    <h3 class="auction-card-title" th:text="${e.title}"></h3>
+                    <p class="auction-card-price">
+                        won for <span th:text="${#numbers.formatDecimal(e.winningPrice, 1, 2)} + ' ' + ${e.currency}"></span>
+                    </p>
+                    <p class="notice notice--success" th:if="${e.paid}">Payment received.</p>
+                    <form th:unless="${e.paid}" th:action="@{/auctions/{id}/pay(id=${e.auctionRef})}" method="post">
+                        <button type="submit" class="btn-primary">Pay now</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Lost -->
+            <h2 class="auction-list-title account-section-title">Lost</h2>
+            <p class="empty-state" th:if="${#lists.isEmpty(account.lost)}">No lost auctions.</p>
+            <div class="auction-grid" th:unless="${#lists.isEmpty(account.lost)}">
+                <a class="auction-card" th:each="e : ${account.lost}" th:href="@{/auctions/{id}(id=${e.auctionRef})}">
+                    <div class="asset-tag-row">
+                        <span th:text="${e.itemId}"></span>
+                    </div>
+                    <div class="tag-perforation"></div>
+                    <h3 class="auction-card-title" th:text="${e.title}"></h3>
+                    <p class="auction-card-price">Sold to another bidder.</p>
+                </a>
+            </div>
+        </div>
+    </main>
+</div>
+<script th:src="@{/js/dispatch-clock.js}"></script>
+</body>
+</html>
