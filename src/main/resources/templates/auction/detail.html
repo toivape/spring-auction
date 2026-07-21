@@ -12,6 +12,7 @@
     <header class="shell-header">
         <span class="wordmark">Manifest <span class="wordmark-sub">— Auctions</span></span>
         <div class="who">
+            <a class="link-button" th:href="@{/account}">My account</a>
             <span class="who-email" th:text="${displayName}"></span>
             <form th:action="@{/logout}" method="post" class="logout-form">
                 <button type="submit" class="link-button">Log out</button>
