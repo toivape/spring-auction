@@ -35,7 +35,7 @@ class AuctionServiceIntegrationTest {
 
     private Auction activeAuction(String itemId, Instant endsAt) {
         return auctionRepository.save(new Auction(
-                null, auctionRepository.nextAuctionRef(), itemId, "Active auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                null, auctionRepository.nextAuctionRef(), itemId, "Active auction", "Dell laptop", "laptops", AuctionType.FIRST_PRICE,
                 AuctionLifecycleStatus.ACTIVE, BigDecimal.valueOf(1000), BigDecimal.valueOf(450),
                 "EUR", Instant.now().minusSeconds(7200), endsAt, null, null, Instant.now()));
     }

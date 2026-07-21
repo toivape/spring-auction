@@ -19,6 +19,14 @@
 
             <form th:action="@{/admin/auctions/{id}/activate(id=${auction.auctionRef})}" method="post">
                 <div class="field">
+                    <label for="auctionType">Auction type</label>
+                    <select id="auctionType" name="auctionType">
+                        <option th:each="t : ${auctionTypes}" th:value="${t.name()}" th:text="${t.displayName()}"
+                                th:selected="${auction.auctionType == t}"></option>
+                    </select>
+                    <p class="field-hint">Locked once the auction is active.</p>
+                </div>
+                <div class="field">
                     <label for="startsAt">Start date</label>
                     <input type="datetime-local" id="startsAt" name="startsAt">
                     <p class="field-hint">Leave blank to start now.</p>

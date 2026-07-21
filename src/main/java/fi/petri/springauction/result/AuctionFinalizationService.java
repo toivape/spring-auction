@@ -3,6 +3,7 @@ package fi.petri.springauction.result;
 import fi.petri.springauction.auction.Auction;
 import fi.petri.springauction.auction.AuctionLifecycleStatus;
 import fi.petri.springauction.auction.AuctionRepository;
+import fi.petri.springauction.auction.AuctionType;
 import fi.petri.springauction.bid.Bid;
 import fi.petri.springauction.bid.BidRepository;
 import fi.petri.springauction.notification.AuctionFinalizedEvent;
@@ -113,13 +114,13 @@ public class AuctionFinalizationService {
      * SECOND_PRICE (Vickrey): winner pays the second-highest amount, or the start price if they were
      * the only bidder. Caller guarantees {@code eligible} is non-empty.
      */
-    static Outcome computeOutcome(List<Bid> eligible, String auctionType, BigDecimal startPrice) {
+    static Outcome computeOutcome(List<Bid> eligible, AuctionType auctionType, BigDecimal startPrice) {
         List<Bid> ranked = eligible.stream()
                 .sorted(Comparator.comparing(Bid::amount).reversed().thenComparing(Bid::id))
                 .toList();
         Bid winner = ranked.getFirst();
 
-        BigDecimal price = "SECOND_PRICE".equals(auctionType)
+        BigDecimal price = auctionType == AuctionType.SECOND_PRICE
                 ? (ranked.size() >= 2 ? ranked.get(1).amount() : startPrice)
                 : winner.amount();
 

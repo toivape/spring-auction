@@ -3,6 +3,7 @@ package fi.petri.springauction.admin;
 import fi.petri.springauction.TestcontainersConfiguration;
 import fi.petri.springauction.auction.Auction;
 import fi.petri.springauction.auction.AuctionLifecycleStatus;
+import fi.petri.springauction.auction.AuctionType;
 import fi.petri.springauction.auction.AuctionRepository;
 import fi.petri.springauction.security.AdminBootstrapProperties;
 import org.junit.jupiter.api.Test;
@@ -57,7 +58,7 @@ class AdminAuctionControllerIntegrationTest {
 
     private Auction draftAuction() {
         return auctionRepository.save(new Auction(
-                null, auctionRepository.nextAuctionRef(), "IB-99999", null, "Dell laptop", "laptops", null,
+                null, auctionRepository.nextAuctionRef(), "IB-99999", null, "Dell laptop", "laptops", AuctionType.FIRST_PRICE,
                 AuctionLifecycleStatus.DRAFT, BigDecimal.valueOf(1000), BigDecimal.valueOf(450),
                 "EUR", null, null, null, null, Instant.now()));
     }
@@ -69,7 +70,7 @@ class AdminAuctionControllerIntegrationTest {
 
     private Auction activeAuction(String itemId, Instant endsAt) {
         return auctionRepository.save(new Auction(
-                null, auctionRepository.nextAuctionRef(), itemId, "Active auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                null, auctionRepository.nextAuctionRef(), itemId, "Active auction", "Dell laptop", "laptops", AuctionType.FIRST_PRICE,
                 AuctionLifecycleStatus.ACTIVE, BigDecimal.valueOf(1000), BigDecimal.valueOf(450),
                 "EUR", Instant.now().minusSeconds(3600), endsAt, null, null, Instant.now()));
     }
@@ -79,14 +80,14 @@ class AdminAuctionControllerIntegrationTest {
         // comparison only holds if the in-memory value has no nanos beyond micros to begin with.
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
         return auctionRepository.save(new Auction(
-                null, auctionRepository.nextAuctionRef(), itemId, "Unsold auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                null, auctionRepository.nextAuctionRef(), itemId, "Unsold auction", "Dell laptop", "laptops", AuctionType.FIRST_PRICE,
                 AuctionLifecycleStatus.UNSOLD, BigDecimal.valueOf(1000), BigDecimal.valueOf(450),
                 "EUR", now.minusSeconds(7200), now.minusSeconds(3600), null, null, now));
     }
 
     private Auction cancelledAuction(String itemId) {
         return auctionRepository.save(new Auction(
-                null, auctionRepository.nextAuctionRef(), itemId, "Cancelled auction", "Dell laptop", "laptops", "FIRST_PRICE",
+                null, auctionRepository.nextAuctionRef(), itemId, "Cancelled auction", "Dell laptop", "laptops", AuctionType.FIRST_PRICE,
                 AuctionLifecycleStatus.CANCELLED, BigDecimal.valueOf(1000), BigDecimal.valueOf(450),
                 "EUR", Instant.now().minusSeconds(7200), Instant.now().plusSeconds(3600), null, null, Instant.now()));
     }
@@ -144,7 +145,7 @@ class AdminAuctionControllerIntegrationTest {
         Auction lastAuction = null;
         for (int i = 0; i < 16; i++) {
             Auction auction = auctionRepository.save(new Auction(
-                    null, auctionRepository.nextAuctionRef(), "IB-PAGE-" + i, null, "Dell laptop", "laptops", null,
+                    null, auctionRepository.nextAuctionRef(), "IB-PAGE-" + i, null, "Dell laptop", "laptops", AuctionType.FIRST_PRICE,
                     AuctionLifecycleStatus.CANCELLED, BigDecimal.valueOf(1000), BigDecimal.valueOf(450),
                     "EUR", null, null, null, null, Instant.now()));
             if (i == 0) {
@@ -218,6 +219,36 @@ class AdminAuctionControllerIntegrationTest {
         assertEquals(AuctionLifecycleStatus.ACTIVE, reloaded.lifecycleStatus());
         assertEquals(localInstant("2026-08-01T10:00"), reloaded.startsAt());
         assertEquals(localInstant("2026-09-01T10:00"), reloaded.endsAt());
+    }
+
+    @Test
+    void activatingWithSecondPricePersistsTheChosenType() throws Exception {
+        Auction auction = draftAuction();
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions/{id}/activate", auction.auctionRef())
+                        .session(session)
+                        .with(csrf())
+                        .param("auctionType", "SECOND_PRICE"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/auctions"));
+
+        Auction reloaded = auctionRepository.findCurrentByRef(auction.auctionRef()).orElseThrow();
+        assertEquals(AuctionType.SECOND_PRICE, reloaded.auctionType());
+    }
+
+    @Test
+    void activatingWithoutATypeDefaultsToFirstPrice() throws Exception {
+        Auction auction = draftAuction();
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions/{id}/activate", auction.auctionRef())
+                        .session(session)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        Auction reloaded = auctionRepository.findCurrentByRef(auction.auctionRef()).orElseThrow();
+        assertEquals(AuctionType.FIRST_PRICE, reloaded.auctionType());
     }
 
     @Test

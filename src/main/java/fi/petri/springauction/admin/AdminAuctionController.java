@@ -3,6 +3,7 @@ package fi.petri.springauction.admin;
 import fi.petri.springauction.auction.Auction;
 import fi.petri.springauction.auction.AuctionLifecycleStatus;
 import fi.petri.springauction.auction.AuctionService;
+import fi.petri.springauction.auction.AuctionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -64,15 +65,28 @@ public class AdminAuctionController {
     @GetMapping("/admin/auctions/{id}/activate")
     public String activateForm(@PathVariable Long id, Model model) {
         model.addAttribute("auction", auctionService.findById(id));
+        model.addAttribute("auctionTypes", AuctionType.values());
         return "admin/activate-auction";
     }
 
     @PostMapping("/admin/auctions/{id}/activate")
     public String activate(@PathVariable Long id,
+                            @RequestParam(required = false) String auctionType,
                             @RequestParam(required = false) String startsAt,
                             @RequestParam(required = false) String endsAt) {
-        auctionService.activate(id, parseDateTime(startsAt), parseDateTime(endsAt));
+        auctionService.activate(id, parseAuctionType(auctionType), parseDateTime(startsAt), parseDateTime(endsAt));
         return "redirect:/admin/auctions";
+    }
+
+    private AuctionType parseAuctionType(String auctionType) {
+        if (auctionType == null || auctionType.isBlank()) {
+            return AuctionType.FIRST_PRICE;
+        }
+        try {
+            return AuctionType.valueOf(auctionType);
+        } catch (IllegalArgumentException e) {
+            return AuctionType.FIRST_PRICE;
+        }
     }
 
     @PostMapping("/admin/auctions/{id}/archive")

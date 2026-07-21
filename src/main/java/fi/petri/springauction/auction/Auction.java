@@ -14,7 +14,7 @@ public record Auction(
         String title,
         String description,
         String category,
-        String auctionType,
+        AuctionType auctionType,
         AuctionLifecycleStatus lifecycleStatus,
         BigDecimal startPrice,
         BigDecimal currentValue,

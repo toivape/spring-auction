@@ -3,6 +3,7 @@ package fi.petri.springauction.ingest;
 import fi.petri.springauction.auction.Auction;
 import fi.petri.springauction.auction.AuctionLifecycleStatus;
 import fi.petri.springauction.auction.AuctionRepository;
+import fi.petri.springauction.auction.AuctionType;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -32,7 +33,7 @@ public class IngestService {
                 null,
                 item.description(),
                 item.category(),
-                null,
+                AuctionType.FIRST_PRICE,
                 AuctionLifecycleStatus.DRAFT,
                 BigDecimal.valueOf(item.price()),
                 BigDecimal.valueOf(item.currentValue()),

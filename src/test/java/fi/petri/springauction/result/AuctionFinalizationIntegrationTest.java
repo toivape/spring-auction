@@ -3,6 +3,7 @@ package fi.petri.springauction.result;
 import fi.petri.springauction.TestcontainersConfiguration;
 import fi.petri.springauction.auction.Auction;
 import fi.petri.springauction.auction.AuctionLifecycleStatus;
+import fi.petri.springauction.auction.AuctionType;
 import fi.petri.springauction.auction.AuctionRepository;
 import fi.petri.springauction.bid.Bid;
 import fi.petri.springauction.bid.BidEventType;
@@ -44,7 +45,7 @@ class AuctionFinalizationIntegrationTest {
 
     private int userSeq = 0;
 
-    private Auction endedAuction(String itemId, String auctionType, String startPrice) {
+    private Auction endedAuction(String itemId, AuctionType auctionType, String startPrice) {
         return auctionRepository.save(new Auction(
                 null, auctionRepository.nextAuctionRef(), itemId, "Ended auction", "Dell laptop", "laptops", auctionType,
                 AuctionLifecycleStatus.ACTIVE, new BigDecimal(startPrice), new BigDecimal(startPrice),
@@ -69,7 +70,7 @@ class AuctionFinalizationIntegrationTest {
 
     @Test
     void firstPriceAuctionSellsToHighestBidderAtTheirOwnAmount() {
-        Auction auction = endedAuction("FIN-1", "FIRST_PRICE", "100");
+        Auction auction = endedAuction("FIN-1", AuctionType.FIRST_PRICE, "100");
         User a = user();
         User b = user();
         placeBid(auction.auctionRef(), a.id(), "150");
@@ -87,7 +88,7 @@ class AuctionFinalizationIntegrationTest {
 
     @Test
     void secondPriceAuctionChargesTheWinnerTheSecondHighestAmount() {
-        Auction auction = endedAuction("FIN-2", "SECOND_PRICE", "100");
+        Auction auction = endedAuction("FIN-2", AuctionType.SECOND_PRICE, "100");
         User a = user();
         User b = user();
         placeBid(auction.auctionRef(), a.id(), "150");
@@ -102,7 +103,7 @@ class AuctionFinalizationIntegrationTest {
 
     @Test
     void onlyTheLatestBidPerUserCounts() {
-        Auction auction = endedAuction("FIN-3", "FIRST_PRICE", "100");
+        Auction auction = endedAuction("FIN-3", AuctionType.FIRST_PRICE, "100");
         User a = user();
         User b = user();
         placeBid(auction.auctionRef(), a.id(), "150");
@@ -118,7 +119,7 @@ class AuctionFinalizationIntegrationTest {
 
     @Test
     void auctionWithOnlyWithdrawnBidsIsLeftForTheUnsoldJob() {
-        Auction auction = endedAuction("FIN-4", "FIRST_PRICE", "100");
+        Auction auction = endedAuction("FIN-4", AuctionType.FIRST_PRICE, "100");
         User a = user();
         placeBid(auction.auctionRef(), a.id(), "150");
         withdraw(auction.auctionRef(), a.id(), "150");
@@ -132,7 +133,7 @@ class AuctionFinalizationIntegrationTest {
 
     @Test
     void finalizingTwiceWritesOneResultAndIsANoOpTheSecondTime() {
-        Auction auction = endedAuction("FIN-5", "FIRST_PRICE", "100");
+        Auction auction = endedAuction("FIN-5", AuctionType.FIRST_PRICE, "100");
         User a = user();
         placeBid(auction.auctionRef(), a.id(), "150");
 
@@ -148,7 +149,7 @@ class AuctionFinalizationIntegrationTest {
 
     @Test
     void batchFinalizesEveryEndedAuctionThatHasBids() {
-        Auction auction = endedAuction("FIN-6", "SECOND_PRICE", "100");
+        Auction auction = endedAuction("FIN-6", AuctionType.SECOND_PRICE, "100");
         User a = user();
         User b = user();
         placeBid(auction.auctionRef(), a.id(), "150");
