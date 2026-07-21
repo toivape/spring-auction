@@ -11,9 +11,7 @@ import java.util.List;
 public record AccountView(
         List<OngoingEntry> ongoing,
         List<WonEntry> won,
-        List<LostEntry> lost,
-        BigDecimal totalWon,
-        String wonCurrency) {
+        List<LostEntry> lost) {
 
     /** An auction still ACTIVE where the user has a live bid. */
     public record OngoingEntry(Long auctionRef, String title, String itemId, BigDecimal myBid,

@@ -13,12 +13,9 @@ import fi.petri.springauction.user.User;
 import fi.petri.springauction.user.UserRepository;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class AccountService {
@@ -67,17 +64,7 @@ public class AccountService {
                 .flatMap(Optional::stream)
                 .toList();
 
-        // A "Total won" only makes sense in a single currency; if wins span currencies we omit it
-        // rather than summing amounts that aren't comparable.
-        Set<String> currencies = won.stream().map(WonEntry::currency).collect(Collectors.toSet());
-        String wonCurrency = currencies.size() == 1 ? currencies.iterator().next() : null;
-        BigDecimal totalWon = wonCurrency == null ? BigDecimal.ZERO
-                : won.stream()
-                        .map(WonEntry::winningPrice)
-                        .filter(price -> price != null)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return new AccountView(ongoing, won, lost, totalWon, wonCurrency);
+        return new AccountView(ongoing, won, lost);
     }
 
     private static String title(Auction auction) {

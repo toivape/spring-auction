@@ -85,14 +85,10 @@ class AccountControllerIntegrationTest {
     }
 
     private Auction soldAuction(String itemId, String title, Long winnerId, String price, boolean paid) {
-        return soldAuction(itemId, title, winnerId, price, paid, "EUR");
-    }
-
-    private Auction soldAuction(String itemId, String title, Long winnerId, String price, boolean paid, String currency) {
         Auction auction = auctionRepository.save(new Auction(
                 null, auctionRepository.nextAuctionRef(), itemId, title, "Dell laptop", "laptops",
                 AuctionType.FIRST_PRICE, AuctionLifecycleStatus.SOLD, BigDecimal.valueOf(100), new BigDecimal(price),
-                currency, Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60), null, null, Instant.now()));
+                "EUR", Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60), null, null, Instant.now()));
         resultRepository.save(new AuctionResult(
                 null, auction.auctionRef(), ResultStatus.SOLD, winnerId, new BigDecimal(price),
                 Instant.now(), paid ? Instant.now() : null, null, null, null, null));
@@ -104,7 +100,7 @@ class AccountControllerIntegrationTest {
     }
 
     @Test
-    void accountShowsOngoingWonAndLostWithTotals() throws Exception {
+    void accountShowsOngoingWonAndLost() throws Exception {
         User me = me();
         User other = otherUser();
 
@@ -123,7 +119,6 @@ class AccountControllerIntegrationTest {
                 .andExpect(content().string(containsString("Won item")))
                 .andExpect(content().string(containsString("Pay now")))
                 .andExpect(content().string(containsString("Lost item")))
-                .andExpect(content().string(containsString("Total won: 300.00 EUR")))
                 // sealed: the winning price of a lost auction is never shown
                 .andExpect(content().string(not(containsString("777.00"))));
     }
@@ -137,19 +132,6 @@ class AccountControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Payment received")))
                 .andExpect(content().string(not(containsString("Pay now"))));
-    }
-
-    @Test
-    void totalWonHiddenWhenWinsSpanCurrencies() throws Exception {
-        User me = me();
-        soldAuction("IB-EUR", "Euro win", me.id(), "100.00", false, "EUR");
-        soldAuction("IB-USD", "Dollar win", me.id(), "200.00", false, "USD");
-
-        mockMvc.perform(get("/account").with(asMe()))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Euro win")))
-                .andExpect(content().string(containsString("Dollar win")))
-                .andExpect(content().string(not(containsString("Total won"))));
     }
 
     @Test
