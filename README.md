@@ -15,8 +15,9 @@ A Spring Boot web app for running internal asset auctions: staff list assets for
    ```
    ./mvnw spring-boot:run
    ```
-   Spring Boot's Docker Compose support automatically starts the `postgres` container defined in `compose.yaml` and runs Flyway migrations on startup.
+   Spring Boot's Docker Compose support automatically starts the `postgres` and `mailpit` containers defined in `compose.yaml` and runs Flyway migrations on startup.
 3. The app is available at http://localhost:8080.
+4. Outgoing email (win/lose notifications sent when an auction is finalized) is captured by [mailpit](https://mailpit.axllent.org/) rather than actually delivered — open the web inbox at http://localhost:8025 to view it.
 
 ### Default accounts
 
@@ -31,6 +32,9 @@ A Spring Boot web app for running internal asset auctions: staff list assets for
 | `INGESTION_API_KEY` | `dev-ingestion-key` | `X-API-Key` required by the `/api/ingest/**` endpoints |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | `admin@example.com`, `dev-admin-password` | Admin console login |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | *(unset)* | Google OAuth login for bidders — see below |
+| `MAIL_HOST`, `MAIL_PORT` | `localhost`, `1025` | SMTP endpoint for outgoing email (mailpit in dev) |
+| `MAIL_FROM` | `auctions@spring-auction.local` | From address on notification emails |
+| `APP_BASE_URL` | `http://localhost:8080` | Base URL used to build links in notification emails |
 
 Set these in a `.env` file at the repo root (already gitignored) or export them in your shell before running.
 
