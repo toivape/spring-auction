@@ -455,10 +455,33 @@ a {
     outline: none;
 }
 
+.field textarea {
+    width: 100%;
+    border: 1.5px solid var(--paper-line);
+    background: transparent;
+    color: var(--text-on-paper);
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    padding: 0.4rem 0.5rem;
+    resize: vertical;
+}
+
+.field textarea:focus {
+    border-color: var(--text-on-paper);
+    outline: none;
+}
+
 .field-hint {
     font-family: var(--font-mono);
     font-size: 0.7rem;
     color: var(--text-muted-on-paper);
+    margin-top: 0.35rem;
+}
+
+.field-error {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--stamp-red, #7c332b);
     margin-top: 0.35rem;
 }
 

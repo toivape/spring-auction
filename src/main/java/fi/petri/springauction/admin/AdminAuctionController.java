@@ -4,13 +4,19 @@ import fi.petri.springauction.auction.Auction;
 import fi.petri.springauction.auction.AuctionLifecycleStatus;
 import fi.petri.springauction.auction.AuctionService;
 import fi.petri.springauction.auction.AuctionType;
+import jakarta.validation.Valid;
+import org.springframework.beans.propertyeditors.CustomNumberEditor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -60,6 +66,35 @@ public class AdminAuctionController {
         } catch (IllegalArgumentException e) {
             return null;
         }
+    }
+
+    @InitBinder("form")
+    void initFormBinder(WebDataBinder binder) {
+        // datetime-local/number inputs come through as empty strings when left blank; bind those to null
+        // so optional fields stay null and required numeric fields fail as @NotNull rather than typeMismatch.
+        binder.registerCustomEditor(BigDecimal.class, new CustomNumberEditor(BigDecimal.class, true));
+    }
+
+    @GetMapping("/admin/auctions/new")
+    public String createForm(Model model) {
+        model.addAttribute("form", NewAuctionForm.empty());
+        model.addAttribute("auctionTypes", AuctionType.values());
+        return "admin/new-auction";
+    }
+
+    @PostMapping("/admin/auctions")
+    public String create(@Valid @ModelAttribute("form") NewAuctionForm form, BindingResult binding, Model model) {
+        if (!binding.hasFieldErrors("itemId") && auctionService.itemIdExists(form.itemId())) {
+            binding.rejectValue("itemId", "duplicate", "An auction with this item ID already exists");
+        }
+        if (binding.hasErrors()) {
+            model.addAttribute("auctionTypes", AuctionType.values());
+            return "admin/new-auction";
+        }
+        auctionService.create(form.itemId(), form.title(), form.description(), form.category(),
+                form.auctionType(), form.startPrice(), form.currentValue(), form.currency(),
+                form.comment(), form.serialNumber());
+        return "redirect:/admin/auctions";
     }
 
     @GetMapping("/admin/auctions/{id}/activate")

@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
@@ -170,6 +171,135 @@ class AdminAuctionControllerIntegrationTest {
     void listingAuctionsWithoutLoggingInIsRejected() throws Exception {
         mockMvc.perform(get("/admin/auctions"))
                 .andExpect(status().is3xxRedirection());
+    }
+
+    @Test
+    void adminCanViewTheCreateForm() throws Exception {
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(get("/admin/auctions/new").session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("New auction")));
+    }
+
+    @Test
+    void creatingAnAuctionPersistsADraftWithDefaults() throws Exception {
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions")
+                        .session(session)
+                        .with(csrf())
+                        .param("itemId", "IB-NEW-1")
+                        .param("description", "Dell laptop")
+                        .param("category", "laptops")
+                        .param("startPrice", "1000.00"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/auctions"));
+
+        Long ref = auctionRepository.findRefByItemId("IB-NEW-1").orElseThrow();
+        Auction created = auctionRepository.findCurrentByRef(ref).orElseThrow();
+        assertEquals(AuctionLifecycleStatus.DRAFT, created.lifecycleStatus());
+        assertEquals(AuctionType.FIRST_PRICE, created.auctionType());
+        assertEquals("EUR", created.currency());
+        assertEquals(0, new BigDecimal("1000.00").compareTo(created.startPrice()));
+        // Estimated value defaults to the start price when omitted.
+        assertEquals(0, new BigDecimal("1000.00").compareTo(created.currentValue()));
+        assertNull(created.startsAt());
+        assertNull(created.endsAt());
+    }
+
+    @Test
+    void creatingAnAuctionPersistsAllProvidedFields() throws Exception {
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions")
+                        .session(session)
+                        .with(csrf())
+                        .param("itemId", "IB-NEW-2")
+                        .param("title", "Rare watch")
+                        .param("description", "Vintage chronograph")
+                        .param("category", "watches")
+                        .param("auctionType", "SECOND_PRICE")
+                        .param("startPrice", "500.00")
+                        .param("currentValue", "750.00")
+                        .param("currency", "USD")
+                        .param("comment", "Serviced 2025")
+                        .param("serialNumber", "SN-42"))
+                .andExpect(status().is3xxRedirection());
+
+        Long ref = auctionRepository.findRefByItemId("IB-NEW-2").orElseThrow();
+        Auction created = auctionRepository.findCurrentByRef(ref).orElseThrow();
+        assertEquals("Rare watch", created.title());
+        assertEquals(AuctionType.SECOND_PRICE, created.auctionType());
+        assertEquals("USD", created.currency());
+        assertEquals(0, new BigDecimal("750.00").compareTo(created.currentValue()));
+        assertEquals("Serviced 2025", created.comment());
+        assertEquals("SN-42", created.serialNumber());
+    }
+
+    @Test
+    void creatingWithADuplicateItemIdRedisplaysTheFormWithAnError() throws Exception {
+        Auction existing = draftAuction();
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions")
+                        .session(session)
+                        .with(csrf())
+                        .param("itemId", existing.itemId())
+                        .param("description", "Dell laptop")
+                        .param("category", "laptops")
+                        .param("startPrice", "1000.00"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("already exists")));
+
+        // The original DRAFT remains the only version for that item ID (no new row inserted).
+        long versions = jdbcClient.sql("SELECT count(*) FROM auction WHERE item_id = :itemId")
+                .param("itemId", existing.itemId()).query(Long.class).single();
+        assertEquals(1, versions);
+    }
+
+    @Test
+    void creatingWithoutADescriptionRedisplaysTheForm() throws Exception {
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions")
+                        .session(session)
+                        .with(csrf())
+                        .param("itemId", "IB-NEW-3")
+                        .param("category", "laptops")
+                        .param("startPrice", "1000.00"))
+                .andExpect(status().isOk());
+
+        assertFalse(auctionRepository.findRefByItemId("IB-NEW-3").isPresent());
+    }
+
+    @Test
+    void creatingWithANonPositiveStartPriceRedisplaysTheForm() throws Exception {
+        MockHttpSession session = loginAsAdmin();
+
+        mockMvc.perform(post("/admin/auctions")
+                        .session(session)
+                        .with(csrf())
+                        .param("itemId", "IB-NEW-4")
+                        .param("description", "Dell laptop")
+                        .param("category", "laptops")
+                        .param("startPrice", "0"))
+                .andExpect(status().isOk());
+
+        assertFalse(auctionRepository.findRefByItemId("IB-NEW-4").isPresent());
+    }
+
+    @Test
+    void creatingWithoutLoggingInIsRejected() throws Exception {
+        mockMvc.perform(post("/admin/auctions")
+                        .with(csrf())
+                        .param("itemId", "IB-NEW-5")
+                        .param("description", "Dell laptop")
+                        .param("category", "laptops")
+                        .param("startPrice", "1000.00"))
+                .andExpect(status().is3xxRedirection());
+
+        assertFalse(auctionRepository.findRefByItemId("IB-NEW-5").isPresent());
     }
 
     @Test

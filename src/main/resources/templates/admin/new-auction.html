@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>New auction — Manifest</title>
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+</head>
+<body>
+<div class="shell">
+    <div th:replace="~{admin/fragments/shell :: header}"></div>
+    <main class="shell-main shell-main--center">
+        <div class="entry-card panel">
+            <a class="back-link" th:href="@{/admin/auctions}">&larr; Back to manifest</a>
+            <h1 class="panel-title">New auction</h1>
+            <p class="entry-card-sub">Creates a draft. Set the schedule later via Activate.</p>
+
+            <form th:action="@{/admin/auctions}" th:object="${form}" method="post">
+                <div class="field">
+                    <label for="itemId">Item ID</label>
+                    <input type="text" id="itemId" th:field="*{itemId}" required>
+                    <p class="field-error" th:if="${#fields.hasErrors('itemId')}" th:errors="*{itemId}"></p>
+                    <p class="field-hint" th:unless="${#fields.hasErrors('itemId')}">Unique reference for the item.</p>
+                </div>
+                <div class="field">
+                    <label for="title">Title</label>
+                    <input type="text" id="title" th:field="*{title}">
+                    <p class="field-hint">Optional.</p>
+                </div>
+                <div class="field">
+                    <label for="description">Description</label>
+                    <textarea id="description" th:field="*{description}" rows="3" required></textarea>
+                    <p class="field-error" th:if="${#fields.hasErrors('description')}" th:errors="*{description}"></p>
+                </div>
+                <div class="field">
+                    <label for="category">Category</label>
+                    <input type="text" id="category" th:field="*{category}" required>
+                    <p class="field-error" th:if="${#fields.hasErrors('category')}" th:errors="*{category}"></p>
+                </div>
+                <div class="field">
+                    <label for="auctionType">Auction type</label>
+                    <select id="auctionType" th:field="*{auctionType}">
+                        <option th:each="t : ${auctionTypes}" th:value="${t}" th:text="${t.displayName()}"></option>
+                    </select>
+                    <p class="field-hint">Can still be changed on activation.</p>
+                </div>
+                <div class="field">
+                    <label for="startPrice">Start price</label>
+                    <input type="number" id="startPrice" th:field="*{startPrice}" step="0.01" min="0.01" required>
+                    <p class="field-error" th:if="${#fields.hasErrors('startPrice')}" th:errors="*{startPrice}"></p>
+                </div>
+                <div class="field">
+                    <label for="currentValue">Estimated value</label>
+                    <input type="number" id="currentValue" th:field="*{currentValue}" step="0.01" min="0">
+                    <p class="field-error" th:if="${#fields.hasErrors('currentValue')}" th:errors="*{currentValue}"></p>
+                    <p class="field-hint" th:unless="${#fields.hasErrors('currentValue')}">Leave blank to match the start price.</p>
+                </div>
+                <div class="field">
+                    <label for="currency">Currency</label>
+                    <input type="text" id="currency" th:field="*{currency}">
+                </div>
+                <div class="field">
+                    <label for="comment">Comment</label>
+                    <textarea id="comment" th:field="*{comment}" rows="2"></textarea>
+                    <p class="field-hint">Optional.</p>
+                </div>
+                <div class="field">
+                    <label for="serialNumber">Serial number</label>
+                    <input type="text" id="serialNumber" th:field="*{serialNumber}">
+                    <p class="field-hint">Optional.</p>
+                </div>
+                <button type="submit" class="btn-primary">Create auction</button>
+            </form>
+        </div>
+    </main>
+</div>
+</body>
+</html>
