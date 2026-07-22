@@ -1,5 +1,6 @@
 # spring-auction
 
+[![CI](https://github.com/toivape/spring-auction/actions/workflows/ci.yml/badge.svg)](https://github.com/toivape/spring-auction/actions/workflows/ci.yml)
 ![Coverage](.github/badges/jacoco.svg)
 
 A Spring Boot web app for running internal asset auctions: staff list assets for auction, bidders place and can withdraw bids before the auction closes.
