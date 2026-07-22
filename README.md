@@ -1,5 +1,7 @@
 # spring-auction
 
+![Coverage](.github/badges/jacoco.svg)
+
 A Spring Boot web app for running internal asset auctions: staff list assets for auction, bidders place and can withdraw bids before the auction closes.
 
 ## Prerequisites
