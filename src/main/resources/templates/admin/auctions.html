@@ -15,6 +15,7 @@
                 <div class="panel-header">
                     <h1 class="panel-title">Auction manifest</h1>
                     <span class="panel-count" th:text="${auctionPage.totalElements} + ' auction' + (${auctionPage.totalElements} == 1 ? '' : 's')"></span>
+                    <a th:href="@{/admin/auctions/new}" class="btn-primary">New auction</a>
                 </div>
 
                 <form method="get" th:action="@{/admin/auctions}" class="toolbar">

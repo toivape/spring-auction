@@ -43,6 +43,33 @@ public class AuctionService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Auction not found: " + auctionRef));
     }
 
+    public boolean itemIdExists(String itemId) {
+        return itemId != null && auctionRepository.findRefByItemId(itemId.trim()).isPresent();
+    }
+
+    /**
+     * Creates a brand-new DRAFT auction from admin input (no ingest source). Field-level validation is
+     * done on the form; here we allocate a fresh auction_ref and INSERT the first version row, leaving the
+     * window (startsAt/endsAt) for the activation flow. currentValue defaults to the start price and
+     * currency to EUR when omitted.
+     */
+    public Auction create(NewAuctionCommand command) {
+        AuctionType resolvedType = command.auctionType() != null ? command.auctionType() : AuctionType.FIRST_PRICE;
+        BigDecimal resolvedCurrentValue = command.currentValue() != null ? command.currentValue() : command.startPrice();
+        String resolvedCurrency = command.currency() != null && !command.currency().isBlank()
+                ? command.currency().trim() : "EUR";
+
+        return auctionRepository.save(new Auction(
+                null, auctionRepository.nextAuctionRef(), command.itemId().trim(), blankToNull(command.title()),
+                command.description().trim(), command.category().trim(), resolvedType, AuctionLifecycleStatus.DRAFT,
+                command.startPrice(), resolvedCurrentValue, resolvedCurrency, null, null,
+                blankToNull(command.comment()), blankToNull(command.serialNumber()), Instant.now(clock)));
+    }
+
+    private static String blankToNull(String value) {
+        return value != null && !value.isBlank() ? value.trim() : null;
+    }
+
     public void activate(Long auctionRef, AuctionType auctionType, Instant startsAt, Instant endsAt) {
         Auction auction = findById(auctionRef);
 
