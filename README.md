@@ -36,11 +36,20 @@ A Spring Boot web app for running internal asset auctions: staff list assets for
 | `INGESTION_API_KEY` | `dev-ingestion-key` | `X-API-Key` required by the `/api/ingest/**` endpoints |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | `admin@example.com`, `dev-admin-password` | Admin console login |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | *(unset)* | Google OAuth login for bidders — see below |
-| `MAIL_HOST`, `MAIL_PORT` | `localhost`, `1025` | SMTP endpoint for outgoing email (mailpit in dev) |
+| `MAIL_HOST`, `MAIL_PORT` | `localhost`, `1025` | SMTP endpoint for outgoing email (mailpit in dev); used by the `smtp` transport |
 | `MAIL_FROM` | `auctions@spring-auction.local` | From address on notification emails |
 | `APP_BASE_URL` | `http://localhost:8080` | Base URL used to build links in notification emails |
+| `NOTIFICATION_TRANSPORT` | `smtp` | Email transport: `smtp` (Mailpit / SMTP relay) or `mailjet` (Mailjet HTTP API) |
+| `MAILJET_API_KEY`, `MAILJET_SECRET_KEY` | *(unset)* | Mailjet credentials, required when `NOTIFICATION_TRANSPORT=mailjet` |
 
 Set these in a `.env` file at the repo root (already gitignored) or export them in your shell before running.
+
+## Sending email
+
+Notification emails go through a pluggable transport, selected by `NOTIFICATION_TRANSPORT`:
+
+- **`smtp` (default)** — Spring `JavaMailSender` against `MAIL_HOST`/`MAIL_PORT`. Locally that's Mailpit; it also covers any SMTP relay.
+- **`mailjet`** — the [Mailjet](https://www.mailjet.com/) HTTP API, intended for the Google Cloud deployment (GCP has no native email service and blocks outbound SMTP port 25). Set `NOTIFICATION_TRANSPORT=mailjet` and provide `MAILJET_API_KEY`/`MAILJET_SECRET_KEY` (from Google Secret Manager in production). The `MAIL_FROM` address must be a verified Mailjet sender.
 
 ## Setting up Google OAuth
 
