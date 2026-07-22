@@ -51,6 +51,21 @@ Notification emails go through a pluggable transport, selected by `NOTIFICATION_
 - **`smtp` (default)** — Spring `JavaMailSender` against `MAIL_HOST`/`MAIL_PORT`. Locally that's Mailpit; it also covers any SMTP relay.
 - **`mailjet`** — the [Mailjet](https://www.mailjet.com/) HTTP API, intended for the Google Cloud deployment (GCP has no native email service and blocks outbound SMTP port 25). Set `NOTIFICATION_TRANSPORT=mailjet` and provide `MAILJET_API_KEY`/`MAILJET_SECRET_KEY` (from Google Secret Manager in production). The `MAIL_FROM` address must be a verified Mailjet sender.
 
+The transport is chosen at startup (a config change, no rebuild). To switch:
+
+```bash
+# SMTP / Mailpit — the default; nothing to set
+./mvnw spring-boot:run
+
+# Mailjet — set the transport + credentials (e.g. in .env)
+NOTIFICATION_TRANSPORT=mailjet
+MAILJET_API_KEY=your-mailjet-api-key
+MAILJET_SECRET_KEY=your-mailjet-secret-key
+MAIL_FROM=auctions@yourdomain.com   # must be a verified Mailjet sender
+```
+
+To switch back, unset `NOTIFICATION_TRANSPORT` (or set it to `smtp`) and restart.
+
 ## Setting up Google OAuth
 
 Bidder login uses Sign in with Google. Without `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` set, that login is disabled and the bidder-facing pages are left unsecured for local development.
