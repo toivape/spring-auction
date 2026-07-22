@@ -18,6 +18,7 @@ A Spring Boot web app for running internal asset auctions: staff list assets for
    Spring Boot's Docker Compose support automatically starts the `postgres` and `mailpit` containers defined in `compose.yaml` and runs Flyway migrations on startup.
 3. The app is available at http://localhost:8080.
 4. Outgoing email (win/lose notifications sent when an auction is finalized) is captured by [mailpit](https://mailpit.axllent.org/) rather than actually delivered — open the web inbox at http://localhost:8025 to view it.
+5. A public health check is available at http://localhost:8080/actuator/health — it returns `{"status":"UP"}` and reports `DOWN` if the database is unreachable.
 
 ### Default accounts
 
