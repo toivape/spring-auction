@@ -28,6 +28,8 @@
     </scm>
     <properties>
         <java.version>26</java.version>
+        <!-- Not managed by spring-boot-starter-parent 4.0.7; pin explicitly. 0.8.15 supports Java 26 bytecode. -->
+        <jacoco.version>0.8.15</jacoco.version>
     </properties>
     <dependencies>
         <dependency>
@@ -196,5 +198,37 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Opt-in coverage: `./mvnw test -Pcoverage` writes target/site/jacoco/. Off by default so the
+             plain build stays free of instrumentation overhead. -->
+        <profile>
+            <id>coverage</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <version>${jacoco.version}</version>
+                        <executions>
+                            <execution>
+                                <id>jacoco-prepare-agent</id>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>jacoco-report</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>report</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

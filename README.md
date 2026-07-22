@@ -62,3 +62,11 @@ Bidder login uses Sign in with Google. Without `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT
 ```
 
 Tests run against an ephemeral Testcontainers Postgres instance — no local Docker Compose setup or database state is required beyond having Docker available.
+
+Code coverage is optional and off by default (so the plain build stays fast). To measure it:
+
+```
+./mvnw test -Pcoverage
+```
+
+This writes a JaCoCo report to `target/site/jacoco/index.html`. CI runs this on every push/PR and posts a coverage summary as a PR comment.
