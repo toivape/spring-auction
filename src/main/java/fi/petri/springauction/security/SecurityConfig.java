@@ -43,8 +43,10 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain adminChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/admin/**")
-                .authorizeHttpRequests(authorize -> authorize.anyRequest().hasRole("ADMIN"))
+                .securityMatcher("/admin/**", "/actuator/**")
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
+                        .anyRequest().hasRole("ADMIN"))
                 .formLogin(form -> form
                         .loginPage("/admin/login")
                         .loginProcessingUrl("/admin/login")

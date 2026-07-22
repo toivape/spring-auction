@@ -20,6 +20,21 @@ spring:
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:1025}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      # Public endpoint (see SecurityConfig.adminChain) — status only, no internals leaked.
+      show-details: never
+  health:
+    # Mail (SMTP/Mailpit) is an auxiliary notification channel; its outage shouldn't mark the app
+    # DOWN and pull it out of the load balancer. Health reflects the app + database (db indicator).
+    mail:
+      enabled: false
+
 app:
   ingestion:
     api-key: ${INGESTION_API_KEY:dev-ingestion-key}
