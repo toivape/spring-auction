@@ -4,7 +4,6 @@ import fi.petri.springauction.auction.Auction;
 import fi.petri.springauction.auction.AuctionLifecycleStatus;
 import fi.petri.springauction.auction.AuctionService;
 import fi.petri.springauction.auction.AuctionType;
-import fi.petri.springauction.auction.NewAuctionCommand;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
