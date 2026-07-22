@@ -2,11 +2,8 @@ package fi.petri.springauction.notification;
 
 import fi.petri.springauction.user.User;
 import fi.petri.springauction.user.UserRepository;
-import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -26,14 +23,14 @@ public class AuctionEmailNotifier {
 
     private static final Logger log = LoggerFactory.getLogger(AuctionEmailNotifier.class);
 
-    private final JavaMailSender mailSender;
+    private final EmailSender emailSender;
     private final SpringTemplateEngine templateEngine;
     private final UserRepository userRepository;
     private final NotificationProperties properties;
 
-    public AuctionEmailNotifier(JavaMailSender mailSender, SpringTemplateEngine templateEngine,
+    public AuctionEmailNotifier(EmailSender emailSender, SpringTemplateEngine templateEngine,
                                 UserRepository userRepository, NotificationProperties properties) {
-        this.mailSender = mailSender;
+        this.emailSender = emailSender;
         this.templateEngine = templateEngine;
         this.userRepository = userRepository;
         this.properties = properties;
@@ -76,13 +73,7 @@ public class AuctionEmailNotifier {
     private void send(String to, String subject, String template, Context context) {
         try {
             String html = templateEngine.process(template, context);
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
-            helper.setFrom(properties.fromAddress());
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(html, true);
-            mailSender.send(message);
+            emailSender.send(to, subject, html);
             log.info("Sent {} email to {}", template, to);
         } catch (Exception e) {
             log.warn("Failed to send {} email to {}: {}", template, to, e.getMessage(), e);
