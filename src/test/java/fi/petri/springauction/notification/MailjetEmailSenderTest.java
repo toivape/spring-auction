@@ -27,7 +27,8 @@ class MailjetEmailSenderTest {
     @Test
     void sendBuildsAWellFormedMailjetMessage() throws Exception {
         MailjetClient client = mock(MailjetClient.class);
-        when(client.post(any(MailjetRequest.class))).thenReturn(new MailjetResponse(200, "{}"));
+        when(client.post(any(MailjetRequest.class)))
+                .thenReturn(new MailjetResponse(200, "{\"Messages\":[{\"Status\":\"success\"}]}"));
         MailjetEmailSender sender = new MailjetEmailSender(client, PROPS);
 
         sender.send("bidder@example.com", "Auction won", "<p>You won</p>");
@@ -45,6 +46,18 @@ class MailjetEmailSenderTest {
     void nonSuccessStatusThrows() throws Exception {
         MailjetClient client = mock(MailjetClient.class);
         when(client.post(any(MailjetRequest.class))).thenReturn(new MailjetResponse(400, "{\"ErrorMessage\":\"bad\"}"));
+        MailjetEmailSender sender = new MailjetEmailSender(client, PROPS);
+
+        assertThrows(IllegalStateException.class,
+                () -> sender.send("bidder@example.com", "Auction won", "<p>hi</p>"));
+    }
+
+    @Test
+    void perMessageFailureInA200ResponseThrows() throws Exception {
+        // Send API v3.1 reports rejected messages inside a 200 response via Messages[].Status.
+        MailjetClient client = mock(MailjetClient.class);
+        when(client.post(any(MailjetRequest.class))).thenReturn(new MailjetResponse(200,
+                "{\"Messages\":[{\"Status\":\"error\",\"Errors\":[{\"ErrorMessage\":\"invalid recipient\"}]}]}"));
         MailjetEmailSender sender = new MailjetEmailSender(client, PROPS);
 
         assertThrows(IllegalStateException.class,

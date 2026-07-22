@@ -35,14 +35,28 @@ public class MailjetEmailSender implements EmailSender {
                         .put(Emailv31.Message.TO, new JSONArray().put(new JSONObject().put("Email", to)))
                         .put(Emailv31.Message.SUBJECT, subject)
                         .put(Emailv31.Message.HTMLPART, htmlBody)));
+        MailjetResponse response;
         try {
-            MailjetResponse response = client.post(request);
-            if (response.getStatus() < 200 || response.getStatus() >= 300) {
-                throw new IllegalStateException("Mailjet send to " + to + " failed: HTTP "
-                        + response.getStatus() + " " + response.getRawResponseContent());
-            }
+            response = client.post(request);
         } catch (MailjetException e) {
             throw new IllegalStateException("Mailjet send to " + to + " failed", e);
+        }
+        if (response.getStatus() < 200 || response.getStatus() >= 300) {
+            throw new IllegalStateException("Mailjet send to " + to + " failed: HTTP "
+                    + response.getStatus() + " " + response.getRawResponseContent());
+        }
+        // Send API v3.1 can return HTTP 200 while a message is rejected — the per-message outcome is in
+        // Messages[].Status. Treat anything but "success" as a failure so a rejected email isn't logged as sent.
+        JSONArray messages = new JSONObject(response.getRawResponseContent()).optJSONArray("Messages");
+        if (messages == null || messages.isEmpty()) {
+            throw new IllegalStateException("Mailjet send to " + to + " returned no message status: "
+                    + response.getRawResponseContent());
+        }
+        for (int i = 0; i < messages.length(); i++) {
+            JSONObject msg = messages.getJSONObject(i);
+            if (!"success".equalsIgnoreCase(msg.optString("Status"))) {
+                throw new IllegalStateException("Mailjet rejected message to " + to + ": " + msg);
+            }
         }
     }
 }
