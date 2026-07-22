@@ -53,18 +53,17 @@ public class AuctionService {
      * window (startsAt/endsAt) for the activation flow. currentValue defaults to the start price and
      * currency to EUR when omitted.
      */
-    public Auction create(String itemId, String title, String description, String category,
-                          AuctionType auctionType, BigDecimal startPrice, BigDecimal currentValue,
-                          String currency, String comment, String serialNumber) {
-        AuctionType resolvedType = auctionType != null ? auctionType : AuctionType.FIRST_PRICE;
-        BigDecimal resolvedCurrentValue = currentValue != null ? currentValue : startPrice;
-        String resolvedCurrency = currency != null && !currency.isBlank() ? currency.trim() : "EUR";
+    public Auction create(NewAuctionCommand command) {
+        AuctionType resolvedType = command.auctionType() != null ? command.auctionType() : AuctionType.FIRST_PRICE;
+        BigDecimal resolvedCurrentValue = command.currentValue() != null ? command.currentValue() : command.startPrice();
+        String resolvedCurrency = command.currency() != null && !command.currency().isBlank()
+                ? command.currency().trim() : "EUR";
 
         return auctionRepository.save(new Auction(
-                null, auctionRepository.nextAuctionRef(), itemId.trim(), blankToNull(title),
-                description.trim(), category.trim(), resolvedType, AuctionLifecycleStatus.DRAFT,
-                startPrice, resolvedCurrentValue, resolvedCurrency, null, null,
-                blankToNull(comment), blankToNull(serialNumber), Instant.now(clock)));
+                null, auctionRepository.nextAuctionRef(), command.itemId().trim(), blankToNull(command.title()),
+                command.description().trim(), command.category().trim(), resolvedType, AuctionLifecycleStatus.DRAFT,
+                command.startPrice(), resolvedCurrentValue, resolvedCurrency, null, null,
+                blankToNull(command.comment()), blankToNull(command.serialNumber()), Instant.now(clock)));
     }
 
     private static String blankToNull(String value) {

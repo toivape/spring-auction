@@ -1,6 +1,7 @@
 package fi.petri.springauction.admin;
 
 import fi.petri.springauction.auction.AuctionType;
+import fi.petri.springauction.auction.NewAuctionCommand;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -28,5 +29,11 @@ public record NewAuctionForm(
     /** An empty form pre-populated with sensible defaults, for the initial GET render. */
     public static NewAuctionForm empty() {
         return new NewAuctionForm(null, null, null, null, AuctionType.FIRST_PRICE, null, null, "EUR", null, null);
+    }
+
+    /** Maps this (already-validated) form to the domain command the service consumes. */
+    public NewAuctionCommand toCommand() {
+        return new NewAuctionCommand(itemId, title, description, category, auctionType,
+                startPrice, currentValue, currency, comment, serialNumber);
     }
 }
