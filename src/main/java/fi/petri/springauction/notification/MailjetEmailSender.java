@@ -5,6 +5,7 @@ import com.mailjet.client.MailjetRequest;
 import com.mailjet.client.MailjetResponse;
 import com.mailjet.client.errors.MailjetException;
 import com.mailjet.client.resource.Emailv31;
+import lombok.extern.slf4j.Slf4j;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
  * there is no native email service. Active when {@code app.notification.transport=mailjet}; the SMTP
  * transport ({@link SmtpEmailSender}) is the default everywhere else.
  */
+@Slf4j
 @Component
 @ConditionalOnProperty(name = "app.notification.transport", havingValue = "mailjet")
 public class MailjetEmailSender implements EmailSender {
@@ -25,6 +27,7 @@ public class MailjetEmailSender implements EmailSender {
     public MailjetEmailSender(MailjetClient client, NotificationProperties properties) {
         this.client = client;
         this.properties = properties;
+        log.info("MailjetEmailSender initialized");
     }
 
     @Override

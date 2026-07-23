@@ -2,8 +2,7 @@ package fi.petri.springauction.notification;
 
 import fi.petri.springauction.user.User;
 import fi.petri.springauction.user.UserRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -18,10 +17,9 @@ import java.util.Map;
  * already-finalized finalization sends nothing (send-once for free) and an email failure can never block
  * finalization. Each send is isolated: one bad address doesn't stop the rest.
  */
+@Slf4j
 @Component
 public class AuctionEmailNotifier {
-
-    private static final Logger log = LoggerFactory.getLogger(AuctionEmailNotifier.class);
 
     private final EmailSender emailSender;
     private final SpringTemplateEngine templateEngine;

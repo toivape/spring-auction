@@ -1,6 +1,7 @@
 package fi.petri.springauction.notification;
 
 import jakarta.mail.internet.MimeMessage;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
  * SMTP transport via Spring's {@link JavaMailSender} — used for local dev (Mailpit) and any SMTP relay.
  * Active by default; {@code app.notification.transport=mailjet} switches to {@link MailjetEmailSender}.
  */
+@Slf4j
 @Component
 @ConditionalOnProperty(name = "app.notification.transport", havingValue = "smtp", matchIfMissing = true)
 public class SmtpEmailSender implements EmailSender {
@@ -20,6 +22,7 @@ public class SmtpEmailSender implements EmailSender {
     public SmtpEmailSender(JavaMailSender mailSender, NotificationProperties properties) {
         this.mailSender = mailSender;
         this.properties = properties;
+        log.info("Smtp email sender has been initialized");
     }
 
     @Override
