@@ -32,6 +32,7 @@ public class MailjetEmailSender implements EmailSender {
 
     @Override
     public void send(String to, String subject, String htmlBody) {
+        log.info("Sending email to {} with subject {}", to, subject);
         MailjetRequest request = new MailjetRequest(Emailv31.resource)
                 .property(Emailv31.MESSAGES, new JSONArray().put(new JSONObject()
                         .put(Emailv31.Message.FROM, new JSONObject().put("Email", properties.fromAddress()))
@@ -42,6 +43,7 @@ public class MailjetEmailSender implements EmailSender {
         try {
             response = client.post(request);
         } catch (MailjetException e) {
+            log.error("Mailjet send failed: {}", e.getMessage(), e);
             throw new IllegalStateException("Mailjet send to " + to + " failed", e);
         }
         if (response.getStatus() < 200 || response.getStatus() >= 300) {
