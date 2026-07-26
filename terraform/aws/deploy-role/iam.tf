@@ -164,14 +164,14 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "rds:CreateDBInstance",
       "rds:ModifyDBInstance",
       "rds:DeleteDBInstance",
-      "rds:AddTagsToResource",
-      "rds:RemoveTagsFromResource",
     ]
     resources = [local.rds_instance_arn]
   }
 
   # RDS subnet groups don't support resource-level scoping by instance ARN; Describe/List
-  # actions never support resource-level scoping at all. Kept in one read/discovery statement.
+  # actions never support resource-level scoping at all. AddTagsToResource/RemoveTagsFromResource
+  # are needed on both the instance and the subnet group (different resource type/ARN), so
+  # kept broad here rather than duplicated per-ARN. Kept in one read/discovery statement.
   statement {
     sid    = "RdsSupport"
     effect = "Allow"
@@ -182,6 +182,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "rds:DescribeDBInstances",
       "rds:DescribeDBSubnetGroups",
       "rds:ListTagsForResource",
+      "rds:AddTagsToResource",
+      "rds:RemoveTagsFromResource",
     ]
     resources = ["*"]
   }
@@ -199,6 +201,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "secretsmanager:GetSecretValue",
       "secretsmanager:TagResource",
       "secretsmanager:UntagResource",
+      "secretsmanager:GetResourcePolicy",
     ]
     resources = [local.secrets_arn_pattern]
   }
