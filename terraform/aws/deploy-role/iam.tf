@@ -96,6 +96,25 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     resources = [local.ecr_repository_arn]
   }
 
+  # ECR repository management — Terraform (running as this role) creates/manages the repo
+  # itself and its lifecycle policy, not just image pushes.
+  statement {
+    sid    = "EcrRepository"
+    effect = "Allow"
+    actions = [
+      "ecr:CreateRepository",
+      "ecr:DeleteRepository",
+      "ecr:DescribeRepositories",
+      "ecr:PutLifecyclePolicy",
+      "ecr:GetLifecyclePolicy",
+      "ecr:DeleteLifecyclePolicy",
+      "ecr:PutImageScanningConfiguration",
+      "ecr:TagResource",
+      "ecr:UntagResource",
+    ]
+    resources = [local.ecr_repository_arn]
+  }
+
   # VPC — accepted exception: EC2 doesn't support ARN-level scoping for subnets/route
   # tables/IGWs/security groups, so this is a service-broad grant rather than resource-narrow.
   statement {
@@ -178,9 +197,9 @@ data "aws_iam_policy_document" "github_actions_permissions" {
   }
 
   statement {
-    sid       = "PassEcsRoles"
-    effect    = "Allow"
-    actions   = ["iam:PassRole"]
+    sid     = "PassEcsRoles"
+    effect  = "Allow"
+    actions = ["iam:PassRole"]
     resources = [
       local.ecs_task_execution_role_arn,
       local.ecs_infrastructure_role_arn,
