@@ -15,6 +15,11 @@ resource "aws_secretsmanager_secret" "app" {
   for_each = local.secrets
 
   name = "spring-auction/${each.key}"
+
+  # POC: fast destroy/recreate iteration over durability (same posture as RDS's backup
+  # settings) — without this, a deleted-then-recreated secret is stuck unusable under the
+  # same name for Secrets Manager's default 30-day recovery window.
+  recovery_window_in_days = 0
 }
 
 resource "aws_secretsmanager_secret_version" "app" {

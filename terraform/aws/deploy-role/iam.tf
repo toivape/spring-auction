@@ -43,7 +43,6 @@ locals {
   ecs_task_execution_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.ecs_task_execution_role_name}"
   ecs_infrastructure_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.ecs_infrastructure_role_name}"
   ecr_repository_arn          = "arn:aws:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${var.ecr_repository_name}"
-  rds_instance_arn            = "arn:aws:rds:${var.aws_region}:${data.aws_caller_identity.current.account_id}:db:${var.rds_identifier}"
   secrets_arn_pattern         = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.secrets_name_prefix}*"
   state_bucket_arn            = "arn:aws:s3:::${var.state_bucket_name}"
   lock_table_arn              = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.lock_table_name}"
@@ -156,26 +155,17 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     resources = ["*"]
   }
 
-  # RDS — mutating actions scoped to the one instance ARN.
+  # RDS — accepted broad exception, same reasoning as VPC/EC2 above. CreateDBInstance
+  # references the DB subnet group as well as the instance in one call, so pure per-ARN
+  # scoping doesn't hold up (confirmed: it was denied on the subnet group's ARN, not the
+  # instance's, despite the instance ARN being explicitly granted).
   statement {
-    sid    = "RdsInstance"
+    sid    = "Rds"
     effect = "Allow"
     actions = [
       "rds:CreateDBInstance",
       "rds:ModifyDBInstance",
       "rds:DeleteDBInstance",
-    ]
-    resources = [local.rds_instance_arn]
-  }
-
-  # RDS subnet groups don't support resource-level scoping by instance ARN; Describe/List
-  # actions never support resource-level scoping at all. AddTagsToResource/RemoveTagsFromResource
-  # are needed on both the instance and the subnet group (different resource type/ARN), so
-  # kept broad here rather than duplicated per-ARN. Kept in one read/discovery statement.
-  statement {
-    sid    = "RdsSupport"
-    effect = "Allow"
-    actions = [
       "rds:CreateDBSubnetGroup",
       "rds:ModifyDBSubnetGroup",
       "rds:DeleteDBSubnetGroup",

@@ -20,12 +20,6 @@ variable "ecr_repository_name" {
   default     = "spring-auction"
 }
 
-variable "rds_identifier" {
-  description = "RDS instance identifier application/rds.tf creates"
-  type        = string
-  default     = "spring-auction"
-}
-
 variable "secrets_name_prefix" {
   description = "Secrets Manager name prefix application/secrets.tf creates entries under"
   type        = string
