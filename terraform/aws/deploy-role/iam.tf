@@ -111,6 +111,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "ecr:PutImageScanningConfiguration",
       "ecr:TagResource",
       "ecr:UntagResource",
+      "ecr:ListTagsForResource",
     ]
     resources = [local.ecr_repository_arn]
   }
