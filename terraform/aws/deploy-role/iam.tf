@@ -190,6 +190,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:DetachRolePolicy",
       "iam:ListAttachedRolePolicies",
       "iam:ListRolePolicies",
+      "iam:ListRoleTags",
     ]
     resources = [
       local.ecs_task_execution_role_arn,
@@ -223,6 +224,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "logs:CreateLogGroup",
       "logs:PutRetentionPolicy",
       "logs:TagResource",
+      "logs:ListTagsForResource",
     ]
     resources = ["arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/ecs/*"]
   }
