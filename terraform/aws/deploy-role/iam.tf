@@ -196,6 +196,23 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     resources = [local.secrets_arn_pattern]
   }
 
+  # RDS's manage_master_user_password creates its own secret under a different naming
+  # convention (rds!db-<resource-id>), outside our spring-auction/* prefix — the calling
+  # principal (this role) needs create/tag rights on it too, not just the ECS task role's
+  # read access (granted separately in application/iam.tf).
+  statement {
+    sid    = "RdsManagedSecret"
+    effect = "Allow"
+    actions = [
+      "secretsmanager:CreateSecret",
+      "secretsmanager:TagResource",
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:DeleteSecret",
+      "secretsmanager:GetResourcePolicy",
+    ]
+    resources = ["arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:rds!db-*"]
+  }
+
   # RDS's manage_master_user_password needs to create/manage a grant on the default
   # Secrets Manager KMS key to let RDS use it on our behalf.
   statement {
