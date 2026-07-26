@@ -64,12 +64,42 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "ecs:UpdateExpressGatewayService",
       "ecs:DescribeExpressGatewayService",
       "ecs:RegisterTaskDefinition",
+      "ecs:CreateCluster",
       "ecs:DescribeClusters",
       "ecs:DescribeServices",
       "ecs:ListServiceDeployments",
       "ecs:DescribeServiceDeployments",
       "ecs:TagResource",
       "ecs:UntagResource",
+    ]
+    resources = ["*"]
+  }
+
+  # Express Mode auto-provisions an ALB, target group, ACM cert, auto-scaling policy, and
+  # CloudWatch alarm behind the scenes (see AWS's "resources created by Express Mode" docs) —
+  # none of these are under our control (names/ARNs are dynamically generated), so this is
+  # broad by necessity, same accepted-exception reasoning as the VPC statement above.
+  statement {
+    sid    = "ExpressModeSupportingServices"
+    effect = "Allow"
+    actions = [
+      "elasticloadbalancing:*",
+      "acm:RequestCertificate",
+      "acm:DescribeCertificate",
+      "acm:DeleteCertificate",
+      "acm:ListCertificates",
+      "acm:AddTagsToCertificate",
+      "acm:ListTagsForCertificate",
+      "application-autoscaling:RegisterScalableTarget",
+      "application-autoscaling:DeregisterScalableTarget",
+      "application-autoscaling:PutScalingPolicy",
+      "application-autoscaling:DeleteScalingPolicy",
+      "application-autoscaling:DescribeScalableTargets",
+      "application-autoscaling:DescribeScalingPolicies",
+      "cloudwatch:PutMetricAlarm",
+      "cloudwatch:DeleteAlarms",
+      "cloudwatch:DescribeAlarms",
+      "iam:CreateServiceLinkedRole",
     ]
     resources = ["*"]
   }
