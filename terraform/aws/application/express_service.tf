@@ -15,8 +15,11 @@ resource "aws_ecs_express_gateway_service" "app" {
     image          = var.container_image
     container_port = var.container_port
 
+    # log_stream_prefix reads as optional in the Terraform docs, but the actual ECS API
+    # rejects CreateExpressGatewayService without it — a real API/docs discrepancy.
     aws_logs_configuration {
-      log_group = aws_cloudwatch_log_group.app.name
+      log_group         = aws_cloudwatch_log_group.app.name
+      log_stream_prefix = "ecs"
     }
   }
 
