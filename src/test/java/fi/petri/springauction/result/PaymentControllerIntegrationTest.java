@@ -27,11 +27,12 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -159,18 +160,24 @@ class PaymentControllerIntegrationTest {
     }
 
     @Test
-    void anonymousPayRedirectsToGoogleLogin() throws Exception {
+    void anonymousPayWithValidCsrfTokenRedirectsToGoogleLogin() throws Exception {
         // The authorization filter redirects before the controller runs, so the row needn't exist.
-        // Uses HttpClient (not MockMvc) because the mock servlet env doesn't reliably enforce the
-        // catch-all oauth2Login redirect for the authenticated-only branch.
+        mockMvc.perform(post("/auctions/{id}/pay", 123L).with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", containsString("/oauth2/authorization/google")));
+    }
+
+    @Test
+    void anonymousPayWithoutCsrfTokenIsForbidden() throws Exception {
+        // No _csrf at all is rejected by CsrfFilter itself with 403 before auth ever runs (see
+        // SecurityConfig's admin/appChain docs) — must be a real HTTP call (not MockMvc), since MockMvc
+        // never performs the container-level /error forward that this depends on being correctly handled.
         HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/auctions/123/pay"))
                 .POST(HttpRequest.BodyPublishers.noBody()).build();
 
         HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
 
-        assertEquals(302, response.statusCode());
-        String location = response.headers().firstValue("Location").orElseThrow();
-        assertTrue(location.contains("/oauth2/authorization/google"));
+        assertEquals(403, response.statusCode());
     }
 }

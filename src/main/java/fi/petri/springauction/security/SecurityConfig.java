@@ -79,6 +79,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/css/**", "/js/**", "/webjars/**", "/favicon.ico").permitAll()
                         .requestMatchers(HttpMethod.GET, "/").permitAll()
+                        // Spring Boot's ErrorPageFilter forwards any sendError() (e.g. ingestionChain's 403) to
+                        // /error internally; that forwarded request re-enters FilterChainProxy and falls through to
+                        // this catch-all chain. Without this, an anonymous /error forward gets denied here too,
+                        // and its oauth2Login entry point redirects to Google — silently replacing the original
+                        // status (e.g. 403) with a 302. permitAll lets the forwarded status render as-is.
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().hasRole("USER"))
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.oidcUserService(customOidcUserService))
