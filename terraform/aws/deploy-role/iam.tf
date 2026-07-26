@@ -62,6 +62,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     actions = [
       "ecs:CreateExpressGatewayService",
       "ecs:UpdateExpressGatewayService",
+      "ecs:DeleteExpressGatewayService",
       "ecs:DescribeExpressGatewayService",
       "ecs:RegisterTaskDefinition",
       "ecs:CreateCluster",
