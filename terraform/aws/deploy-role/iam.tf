@@ -196,6 +196,20 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     resources = [local.secrets_arn_pattern]
   }
 
+  # RDS's manage_master_user_password needs to create/manage a grant on the default
+  # Secrets Manager KMS key to let RDS use it on our behalf.
+  statement {
+    sid    = "SecretsManagerDefaultKmsKey"
+    effect = "Allow"
+    actions = [
+      "kms:DescribeKey",
+      "kms:CreateGrant",
+      "kms:ListGrants",
+      "kms:RevokeGrant",
+    ]
+    resources = [data.aws_kms_alias.secretsmanager.target_key_arn]
+  }
+
   # IAM — limited to the two named roles the Express service uses, plus PassRole conditioned
   # to only pass them to ecs.amazonaws.com.
   statement {

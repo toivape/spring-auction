@@ -21,3 +21,9 @@ provider "aws" {
 }
 
 data "aws_caller_identity" "current" {}
+
+# RDS's manage_master_user_password uses this key by default; needed to scope the KMS
+# grant permissions the CI role needs to create that RDS-managed secret.
+data "aws_kms_alias" "secretsmanager" {
+  name = "alias/aws/secretsmanager"
+}
