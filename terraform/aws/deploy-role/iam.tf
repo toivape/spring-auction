@@ -222,10 +222,17 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     actions = [
       "logs:CreateLogGroup",
       "logs:PutRetentionPolicy",
-      "logs:DescribeLogGroups",
       "logs:TagResource",
     ]
     resources = ["arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/ecs/*"]
+  }
+
+  # DescribeLogGroups is a list-style action — doesn't support resource-level scoping.
+  statement {
+    sid       = "LogsDiscovery"
+    effect    = "Allow"
+    actions   = ["logs:DescribeLogGroups"]
+    resources = ["*"]
   }
 
   # Terraform backend — the specific bucket/table bootstrap/ created, nothing else in S3/DynamoDB.

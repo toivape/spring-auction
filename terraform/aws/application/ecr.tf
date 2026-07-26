@@ -17,8 +17,9 @@ resource "aws_ecr_lifecycle_policy" "app" {
         description  = "Expire untagged images immediately"
         selection = {
           tagStatus   = "untagged"
-          countType   = "imageCountMoreThan"
-          countNumber = 0
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
         }
         action = { type = "expire" }
       },

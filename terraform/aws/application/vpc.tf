@@ -74,7 +74,7 @@ resource "aws_route_table_association" "private" {
 
 resource "aws_security_group" "app" {
   name        = "spring-auction-app"
-  description = "Express Mode service tasks — explicit group so RDS's ingress rule (ticket #20) has a stable ID to reference"
+  description = "Express Mode service tasks"
   vpc_id      = aws_vpc.main.id
 
   egress {
