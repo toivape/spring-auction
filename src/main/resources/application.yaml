@@ -41,7 +41,7 @@ app:
   notification:
     base-url: ${APP_BASE_URL:http://localhost:8080}
     from-address: ${MAIL_FROM:auctions@spring-auction.local}
-    # Email transport: smtp (default → local Mailpit / SMTP relay) or mailjet (Mailjet HTTP API, used in GCP).
+    # Email transport: smtp (default → local Mailpit / SMTP relay) or mailjet (Mailjet HTTP API, used on AWS).
     transport: ${NOTIFICATION_TRANSPORT:smtp}
     mailjet:
       api-key: ${MAILJET_API_KEY:}

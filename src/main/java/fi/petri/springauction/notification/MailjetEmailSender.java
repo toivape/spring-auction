@@ -12,8 +12,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * Mailjet HTTP API transport (Send API v3.1) — used in GCP, where outbound SMTP port 25 is blocked and
- * there is no native email service. Active when {@code app.notification.transport=mailjet}; the SMTP
+ * Mailjet HTTP API transport (Send API v3.1) — used on AWS, which also blocks outbound SMTP port 25, in
+ * favor of a 3rd-party HTTPS API (see ADR 0002 for why SES wasn't chosen instead). Active when
+ * {@code app.notification.transport=mailjet}; the SMTP
  * transport ({@link SmtpEmailSender}) is the default everywhere else.
  */
 @Slf4j

@@ -49,7 +49,7 @@ Set these in a `.env` file at the repo root (already gitignored) or export them 
 Notification emails go through a pluggable transport, selected by `NOTIFICATION_TRANSPORT`:
 
 - **`smtp` (default)** — Spring `JavaMailSender` against `MAIL_HOST`/`MAIL_PORT`. Locally that's Mailpit; it also covers any SMTP relay.
-- **`mailjet`** — the [Mailjet](https://www.mailjet.com/) HTTP API, intended for the Google Cloud deployment (GCP has no native email service and blocks outbound SMTP port 25). Set `NOTIFICATION_TRANSPORT=mailjet` and provide `MAILJET_API_KEY`/`MAILJET_SECRET_KEY` (from Google Secret Manager in production). The `MAIL_FROM` address must be a verified Mailjet sender.
+- **`mailjet`** — the [Mailjet](https://www.mailjet.com/) HTTP API, intended for the AWS deployment (AWS blocks outbound SMTP port 25 by default). Set `NOTIFICATION_TRANSPORT=mailjet` and provide `MAILJET_API_KEY`/`MAILJET_SECRET_KEY` (from AWS Secrets Manager in production). The `MAIL_FROM` address must be a verified Mailjet sender.
 
 The transport is chosen at startup (a config change, no rebuild). To switch:
 
