@@ -22,13 +22,49 @@ variable "container_image" {
 }
 
 variable "container_port" {
-  description = "Port the primary container listens on. 80 for the walking-skeleton nginx placeholder; swaps to 8080 once the real app image is wired in."
+  description = "Port the primary container listens on"
   type        = number
-  default     = 80
+  default     = 8080
 }
 
 variable "health_check_path" {
-  description = "ALB health check path. '/' for the nginx placeholder; swaps to /actuator/health with the real app."
+  description = "ALB health check path — permitAll() in SecurityConfig.adminChain"
   type        = string
-  default     = "/"
+  default     = "/actuator/health"
+}
+
+variable "rds_identifier" {
+  description = "Must match deploy-role/'s rds_identifier — its policy scopes RDS actions to this name"
+  type        = string
+  default     = "spring-auction"
+}
+
+variable "google_client_id" {
+  description = "Not sensitive — plain env var per the app's own config convention"
+  type        = string
+}
+
+variable "google_client_secret" {
+  type      = string
+  sensitive = true
+}
+
+variable "mailjet_api_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "mailjet_secret_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "admin_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "ingestion_api_key" {
+  type      = string
+  sensitive = true
 }

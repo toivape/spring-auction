@@ -21,6 +21,58 @@ resource "aws_ecs_express_gateway_service" "app" {
       log_group         = aws_cloudwatch_log_group.app.name
       log_stream_prefix = "ecs"
     }
+
+    environment {
+      name  = "DB_HOST"
+      value = aws_db_instance.app.address
+    }
+    environment {
+      name  = "DB_PORT"
+      value = tostring(aws_db_instance.app.port)
+    }
+    environment {
+      name  = "DB_NAME"
+      value = aws_db_instance.app.db_name
+    }
+    environment {
+      name  = "DB_USERNAME"
+      value = aws_db_instance.app.username
+    }
+    environment {
+      name  = "NOTIFICATION_TRANSPORT"
+      value = "mailjet"
+    }
+    environment {
+      name  = "GOOGLE_CLIENT_ID"
+      value = var.google_client_id
+    }
+
+    # DB_PASSWORD pulls just the "password" key out of RDS's JSON-shaped managed secret
+    # (ECS's :key:: suffix convention for extracting one field from a Secrets Manager secret).
+    secret {
+      name       = "DB_PASSWORD"
+      value_from = "${aws_db_instance.app.master_user_secret[0].secret_arn}:password::"
+    }
+    secret {
+      name       = "GOOGLE_CLIENT_SECRET"
+      value_from = aws_secretsmanager_secret.app["google-client-secret"].arn
+    }
+    secret {
+      name       = "MAILJET_API_KEY"
+      value_from = aws_secretsmanager_secret.app["mailjet-api-key"].arn
+    }
+    secret {
+      name       = "MAILJET_SECRET_KEY"
+      value_from = aws_secretsmanager_secret.app["mailjet-secret-key"].arn
+    }
+    secret {
+      name       = "ADMIN_PASSWORD"
+      value_from = aws_secretsmanager_secret.app["admin-password"].arn
+    }
+    secret {
+      name       = "INGESTION_API_KEY"
+      value_from = aws_secretsmanager_secret.app["ingestion-api-key"].arn
+    }
   }
 
   network_configuration {
