@@ -46,6 +46,10 @@ resource "aws_ecs_express_gateway_service" "app" {
       name  = "GOOGLE_CLIENT_ID"
       value = var.google_client_id
     }
+    environment {
+      name  = "APP_BASE_URL"
+      value = var.app_base_url
+    }
 
     # DB_PASSWORD pulls just the "password" key out of RDS's JSON-shaped managed secret
     # (ECS's :key:: suffix convention for extracting one field from a Secrets Manager secret).

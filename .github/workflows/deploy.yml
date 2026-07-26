@@ -13,6 +13,7 @@ jobs:
       contents: read
     env:
       TF_VAR_google_client_id: ${{ vars.GOOGLE_CLIENT_ID }}
+      TF_VAR_app_base_url: ${{ vars.APP_BASE_URL }}
       TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       TF_VAR_mailjet_api_key: ${{ secrets.MAILJET_API_KEY }}
       TF_VAR_mailjet_secret_key: ${{ secrets.MAILJET_SECRET_KEY }}

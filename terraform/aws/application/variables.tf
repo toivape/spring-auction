@@ -44,6 +44,11 @@ variable "google_client_id" {
   type        = string
 }
 
+variable "app_base_url" {
+  description = "Public URL of the deployed Express Mode service, used for OAuth redirect and win-email payment links. Not knowable before first apply — see ticket #21."
+  type        = string
+}
+
 variable "google_client_secret" {
   type      = string
   sensitive = true
