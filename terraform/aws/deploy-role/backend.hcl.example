@@ -1,0 +1,6 @@
+# Copy to backend.hcl (gitignored) and fill in the values bootstrap/ printed as outputs.
+# Usage: terraform init -backend-config=backend.hcl
+
+bucket         = "REPLACE_WITH_state_bucket_name"
+region         = "eu-north-1"
+dynamodb_table = "spring-auction-tf-locks"

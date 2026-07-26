@@ -32,3 +32,12 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Terraform ###
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+!*.tfvars.example
+backend.hcl
+crash.log
