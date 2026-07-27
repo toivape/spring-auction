@@ -14,7 +14,9 @@ jobs:
   destroy:
     name: Destroy
     runs-on: ubuntu-latest
-    if: github.event.inputs.confirm == 'destroy'
+    # Guard on main too: the backend key points at the one real deployment, so a dispatch
+    # from any other branch would still destroy it. Match deploy.yml's branch guard.
+    if: github.ref == 'refs/heads/main' && github.event.inputs.confirm == 'destroy'
     permissions:
       id-token: write
       contents: read
