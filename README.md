@@ -97,3 +97,28 @@ Code coverage is optional and off by default (so the plain build stays fast). To
 ```
 
 This writes a JaCoCo report to `target/site/jacoco/index.html`. CI runs this on every push/PR and posts a coverage summary as a PR comment.
+
+## Deployment (AWS)
+
+The app deploys to AWS ECS Express Mode via GitHub Actions. Terraform lives under `terraform/aws/` in three stacks:
+
+| Stack | Manages | Applied by |
+|---|---|---|
+| `bootstrap/` | S3 state bucket + DynamoDB lock table (Terraform's own backend) | Once, manually (local backend) |
+| `deploy-role/` | The `github-actions-ecs-role` OIDC role and the IAM policy CI assumes | **Manually**, with account-admin credentials (see below) |
+| `application/` | VPC, RDS, ECR, Secrets Manager, the ECS Express service | CI, on every **aws-deploy** run |
+
+`aws-deploy` (build image + `terraform apply`) and `aws-destroy` (`terraform destroy`, to stop the bill) are manual `workflow_dispatch` workflows, both guarded to the `main` branch; `aws-destroy` additionally requires typing `destroy` to confirm.
+
+### Applying the `deploy-role` stack (manual step)
+
+CI assumes `github-actions-ecs-role` but cannot modify it, so the `deploy-role/` stack is **not** part of the CI flow — it must be applied by hand whenever its IAM policy changes (e.g. granting the CI role a new permission). Use admin credentials for the deployment account (`039314425267`):
+
+```bash
+# Log in with an admin profile for the account (e.g. via granted/assume) first, then:
+cd terraform/aws/deploy-role
+terraform init -backend-config=backend.hcl
+terraform apply -var state_bucket_name=spring-auction-tf-state-039314425267
+```
+
+> **Common trap:** a permission added to `deploy-role/iam.tf` and merged to `main` has **no effect** until this apply runs. Until then the next `aws-deploy` / `aws-destroy` still fails with `AccessDenied` on the missing action — merging the change is not enough.

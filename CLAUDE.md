@@ -43,3 +43,9 @@ Project-specific notes for spring-auction. See PLAN.md (parent directory) for th
 ## Migrations
 - Single-file schema so far (`V1__create_database.sql`). While pre-release (no real deployed data), edit it in place rather than adding `V2`/`V3` migrations; switch to additive migrations once anything is actually deployed. See the dev-volume checksum gotcha under Local Postgres/Docker above — an in-place edit means the dev container needs a reset before it'll start again.
 - Table names are singular (`auction`, `bid`, not `auctions`/`bids`). `"user"` is quoted in SQL — it's a reserved word in Postgres.
+
+## Terraform / AWS deploy
+- Three stacks under `terraform/aws/`: `bootstrap/` (state bucket + lock table, local backend, one-time), `deploy-role/` (the CI OIDC role `github-actions-ecs-role` + its IAM policy), `application/` (VPC/RDS/ECR/secrets/ECS Express). See README "Deployment (AWS)" for the full commands.
+- **`deploy-role/` is applied manually, never by CI** — CI *assumes* that role and can't edit it. A permission added to `deploy-role/iam.tf` and merged has NO effect until someone runs `terraform apply` on that stack with account-admin creds (`AWS_PROFILE=spring-auction/AdministratorAccess`; `init -backend-config=backend.hcl`; `apply -var state_bucket_name=spring-auction-tf-state-039314425267`). Symptom of forgetting: the next CI deploy/destroy 403s on the newly-added action.
+- `aws-deploy` / `aws-destroy` are manual `workflow_dispatch` workflows, guarded to `main` (`aws-destroy` also needs `confirm=destroy`).
+- `terraform destroy` reads deletion-affecting attributes from **state**, not config: a `force_delete=true` added to a resource but not yet `apply`d won't help a destroy. That's why `aws-destroy` force-deletes the ECR repo via the AWS CLI before `terraform destroy`.
