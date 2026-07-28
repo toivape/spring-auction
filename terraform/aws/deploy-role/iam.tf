@@ -246,6 +246,9 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:ListAttachedRolePolicies",
       "iam:ListRolePolicies",
       "iam:ListRoleTags",
+      # The AWS provider calls this before iam:DeleteRole; without it, `terraform destroy`
+      # fails to remove the two Express-service roles with a 403.
+      "iam:ListInstanceProfilesForRole",
     ]
     resources = [
       local.ecs_task_execution_role_arn,

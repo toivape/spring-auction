@@ -1,4 +1,4 @@
-name: Destroy
+name: aws-destroy
 
 # Tears down the application stack (RDS, ECS Express, VPC, ECR, secrets, logs) to stop the
 # bill. Leaves bootstrap/ (S3 state + DynamoDB locks) and deploy-role/ (IAM) in place — those
@@ -50,6 +50,18 @@ jobs:
       - name: Terraform init
         working-directory: terraform/aws/application
         run: terraform init
+
+      # Terraform's own force_delete only fires if `force_delete = true` was already applied
+      # into state; on a repo created before that flag existed, destroy calls DeleteRepository
+      # without force and fails with RepositoryNotEmptyException. Force-delete via the CLI
+      # first (needs only ecr:DeleteRepository, which the CI role has) so the repo is gone
+      # before Terraform gets to it. `|| true` keeps an already-absent repo from failing.
+      - name: Force-delete ECR repo (Terraform can't unless the flag was pre-applied)
+        run: |
+          aws ecr delete-repository \
+            --repository-name "${{ vars.ECR_REPOSITORY }}" \
+            --region "${{ vars.AWS_REGION }}" \
+            --force || true
 
       - name: Terraform destroy
         working-directory: terraform/aws/application
