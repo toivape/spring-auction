@@ -1,8 +1,11 @@
 # Cloud SQL user password. GCP has no RDS-style managed-secret equivalent, so we generate it
 # and (ticket #31) store it in Secret Manager for the Cloud Run service to read.
 resource "random_password" "db" {
-  length  = 32
-  special = false # keep it URL/JDBC-safe — no escaping needed in the connection string
+  length = 32
+  # Alphanumeric only: the app reads this as a discrete spring.datasource.password property
+  # (not embedded in the JDBC URL), so escaping isn't the concern — this keeps it copy-paste
+  # safe in psql/shell/env dumps. 32 alnum chars is already ~190 bits, ample strength.
+  special = false
 }
 
 # POC cost/iteration posture (mirrors the AWS RDS instance): db-f1-micro, zonal, no backups,
@@ -23,6 +26,7 @@ resource "google_sql_database_instance" "app" {
     tier              = "db-f1-micro"
     availability_type = "ZONAL"
     disk_size         = 10
+    disk_autoresize   = false # POC cost control — don't let the disk (and bill) grow past disk_size
 
     backup_configuration {
       enabled = false
