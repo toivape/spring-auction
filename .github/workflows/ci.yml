@@ -1,12 +1,14 @@
 name: CI
 
+# Allowlist: run tests/coverage only when app code or the Maven build actually changes.
+# (A denylist here let non-code changes — terraform, workflows, root configs — trigger coverage.)
 on:
   push:
     branches: [main]
-    paths-ignore: ['**.md', 'docs/**', 'terraform/**']
+    paths: ['src/**', 'pom.xml', '.mvn/**', 'mvnw', 'mvnw.cmd']
   pull_request:
     branches: [main]
-    paths-ignore: ['**.md', 'docs/**', 'terraform/**']
+    paths: ['src/**', 'pom.xml', '.mvn/**', 'mvnw', 'mvnw.cmd']
 
 jobs:
   test:
