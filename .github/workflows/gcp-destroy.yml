@@ -73,8 +73,22 @@ jobs:
           gcloud compute networks peerings delete servicenetworking-googleapis-com \
             --network="$NETWORK" --project="${{ vars.GCP_PROJECT_ID }}" --quiet || true
 
-      # Everything else: Cloud Run, Artifact Registry, secrets, runtime SA, the reserved range,
-      # subnet, and the VPC (now unblocked). The connection is ABANDONed from state — no API call.
+      # Cloud Run's Direct VPC egress auto-provisions a `serverless-ipv4-*` internal address in the
+      # subnet, and it can linger (RESERVED, 0 users) after the service is destroyed — blocking the
+      # subnet delete with `resourceInUseByAnotherResource`. Cloud Run is already gone by now (it
+      # depends on the SQL instance destroyed above), so release any leftovers before the subnet goes.
+      - name: Release lingering Direct VPC egress addresses
+        run: |
+          for addr in $(gcloud compute addresses list --project "${{ vars.GCP_PROJECT_ID }}" \
+              --regions "${{ vars.GCP_REGION }}" --filter="name~^serverless-ipv4" --format="value(name)"); do
+            echo "Deleting lingering address ${addr}"
+            gcloud compute addresses delete "${addr}" --project "${{ vars.GCP_PROJECT_ID }}" \
+              --region "${{ vars.GCP_REGION }}" --quiet || true
+          done
+
+      # Everything else: Artifact Registry, secrets, runtime SA, the reserved range, subnet, and the
+      # VPC (now unblocked). The connection is ABANDONed from state — no API call. (Cloud Run and
+      # Cloud SQL were already removed by the targeted destroy above.)
       - name: Terraform destroy
         working-directory: terraform/gcp/application
         run: terraform destroy -auto-approve
