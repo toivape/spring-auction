@@ -13,8 +13,7 @@ The GCP mirror of `../aws/` — same three-config, two-operator-model split. See
   identity, so a role/permission change here has no effect until someone re-runs `terraform apply` on
   this stack (the same "merge isn't enough" trap as AWS `deploy-role/`).
 - **`application/`** — applied exclusively by CI (the `gcp-deploy` workflow), on every deploy.
-  VPC, Cloud SQL, Artifact Registry, Secret Manager, IAM, and the Cloud Run service. (Not yet built —
-  see tickets #30–#33.)
+  VPC, Cloud SQL, Artifact Registry, Secret Manager, IAM, and the Cloud Run service.
 
 ## One-time prerequisites (manual)
 
