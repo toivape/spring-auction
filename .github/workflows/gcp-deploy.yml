@@ -14,11 +14,12 @@ jobs:
     env:
       TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
       TF_VAR_region: ${{ vars.GCP_REGION }}
-      TF_VAR_google_client_id: ${{ vars.GOOGLE_CLIENT_ID }}
+      # GCP has its own OAuth client ("GCP client") — distinct from AWS's, so each cloud's
+      # redirect URIs stay on its own client. The other secrets are still shared across clouds.
+      TF_VAR_google_client_id: ${{ vars.GCP_GOOGLE_CLIENT_ID }}
       TF_VAR_app_base_url: ${{ vars.GCP_APP_BASE_URL }}
       TF_VAR_mail_from: ${{ vars.GCP_MAIL_FROM }}
-      # Secrets reused across both clouds — same values as the AWS deploy.
-      TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      TF_VAR_google_client_secret: ${{ secrets.GCP_GOOGLE_CLIENT_SECRET }}
       TF_VAR_mailjet_api_key: ${{ secrets.MAILJET_API_KEY }}
       TF_VAR_mailjet_secret_key: ${{ secrets.MAILJET_SECRET_KEY }}
       TF_VAR_admin_password: ${{ secrets.ADMIN_PASSWORD }}
