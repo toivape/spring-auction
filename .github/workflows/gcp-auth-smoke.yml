@@ -26,7 +26,11 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Prove federated identity reaches the project
+      - name: Prove keyless federation resolved to the deploy SA
         run: |
-          gcloud auth list
-          gcloud projects describe "${{ vars.GCP_PROJECT_ID }}" --format='value(projectId,projectNumber)'
+          # Proves the STS exchange + SA impersonation worked, without depending on any
+          # project-level read role (which the deploy SA isn't granted).
+          ACTIVE="$(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
+          echo "Active identity: ${ACTIVE}"
+          [ "${ACTIVE}" = "${{ vars.GCP_DEPLOY_SA }}" ] || { echo "::error::expected ${{ vars.GCP_DEPLOY_SA }}"; exit 1; }
+          gcloud auth print-access-token >/dev/null && echo "Access token minted for the impersonated SA"
