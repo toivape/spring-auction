@@ -140,6 +140,11 @@ the bill) are manual `workflow_dispatch` workflows, both guarded to `main`; `gcp
 requires typing `destroy` to confirm. Cloud Run reaches Cloud SQL over a private IP via Direct VPC egress
 (see `docs/adr/0005-cloud-run-reaches-cloud-sql-via-private-ip.md`) — the app's JDBC config is unchanged.
 
+> **Teardown note:** `gcp-destroy` removes all billable resources (Cloud SQL, Cloud Run, Artifact Registry,
+> secrets), so the bill stops immediately. The free VPC/subnet may linger, though: Direct VPC egress leaves
+> a serverless address reservation that GCP releases asynchronously (up to ~an hour) and that can't be
+> force-deleted. Re-run `gcp-destroy` after it clears to remove the leftover network. See CLAUDE.md for details.
+
 ### Applying the `deploy-role` stack (manual step)
 
 Exactly like AWS: CI *impersonates* `github-actions-deploy` but cannot modify it, so `deploy-role/` is
