@@ -122,3 +122,50 @@ terraform apply -var state_bucket_name=spring-auction-tf-state-039314425267
 ```
 
 > **Common trap:** a permission added to `deploy-role/iam.tf` and merged to `main` has **no effect** until this apply runs. Until then the next `aws-deploy` / `aws-destroy` still fails with `AccessDenied` on the missing action — merging the change is not enough.
+
+## Deployment (GCP)
+
+A parallel deployment runs the same image on Google Cloud Run — both clouds deployable independently.
+Terraform lives under `terraform/gcp/` in the same three-stack shape as AWS (see `terraform/gcp/README.md`
+for the full commands):
+
+| Stack | Manages | Applied by |
+|---|---|---|
+| `bootstrap/` | GCS state bucket + project API enablement (Terraform's own backend) | Once, manually (local backend). No lock table — GCS locks natively. |
+| `deploy-role/` | Workload Identity Federation pool/provider + the `github-actions-deploy` service account CI impersonates | **Manually**, with account-admin credentials (see below) |
+| `application/` | VPC, Cloud SQL, Artifact Registry, Secret Manager, IAM, the Cloud Run service | CI, on every **gcp-deploy** run |
+
+`gcp-deploy` (build image + two-phase `terraform apply`) and `gcp-destroy` (`terraform destroy`, to stop
+the bill) are manual `workflow_dispatch` workflows, both guarded to `main`; `gcp-destroy` additionally
+requires typing `destroy` to confirm. Cloud Run reaches Cloud SQL over a private IP via Direct VPC egress
+(see `docs/adr/0005-cloud-run-reaches-cloud-sql-via-private-ip.md`) — the app's JDBC config is unchanged.
+
+### Applying the `deploy-role` stack (manual step)
+
+Exactly like AWS: CI *impersonates* `github-actions-deploy` but cannot modify it, so `deploy-role/` is
+**not** part of the CI flow — apply it by hand whenever its IAM changes (e.g. granting the deploy SA a
+new role). Use admin credentials (ADC) for the project (`spring-auction`):
+
+```bash
+cd terraform/gcp/deploy-role
+terraform init -backend-config=backend.hcl
+terraform apply -var project_id=spring-auction -var state_bucket_name=spring-auction-tf-state-spring-auction
+```
+
+> **Common trap (same as AWS):** a role added to `deploy-role/iam.tf` and merged to `main` has **no
+> effect** until this apply runs. Until then the next `gcp-deploy` / `gcp-destroy` still fails with a
+> `403 PERMISSION_DENIED` on the missing action — merging the change is not enough.
+
+### First deploy — one manual OAuth step
+
+Cloud Run's URL is deterministic (`https://spring-auction-<projectnumber>.<region>.run.app`), so
+`GCP_APP_BASE_URL` is set upfront and no redeploy is needed. After the first `gcp-deploy`, add the
+service URL's callback to the existing Google OAuth client's **Authorized redirect URIs** (Console →
+APIs & Services → Credentials), or Google/admin login will fail:
+
+```
+https://spring-auction-<projectnumber>.<region>.run.app/login/oauth2/code/google
+```
+
+Verify with `curl <service_url>/actuator/health` → `{"status":"UP"}` (proves Cloud Run is up **and**
+reached Cloud SQL over the private IP — health reports DOWN if the DB is unreachable).
