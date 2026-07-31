@@ -1,0 +1,5 @@
+# Copy to backend.hcl (gitignored) and fill in the bucket bootstrap/ printed as an output.
+# Usage: terraform init -backend-config=backend.hcl
+# (prefix is hardcoded in main.tf; the GCS backend locks natively — no lock table.)
+
+bucket = "REPLACE_WITH_state_bucket_name"

@@ -1,0 +1,32 @@
+name: gcp-auth-smoke
+
+# Tracer-bullet proof that Workload Identity Federation (terraform/gcp/deploy-role/) works:
+# CI federates keylessly to the deploy SA and can talk to the project. Superseded by
+# gcp-deploy once that exists — safe to delete then.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  auth:
+    name: WIF auth smoke test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Authenticate to Google Cloud (keyless, via WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Prove federated identity reaches the project
+        run: |
+          gcloud auth list
+          gcloud projects describe "${{ vars.GCP_PROJECT_ID }}" --format='value(projectId,projectNumber)'
