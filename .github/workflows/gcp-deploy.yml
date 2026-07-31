@@ -1,0 +1,80 @@
+name: gcp-deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+      TF_VAR_region: ${{ vars.GCP_REGION }}
+      TF_VAR_google_client_id: ${{ vars.GOOGLE_CLIENT_ID }}
+      TF_VAR_app_base_url: ${{ vars.GCP_APP_BASE_URL }}
+      TF_VAR_mail_from: ${{ vars.GCP_MAIL_FROM }}
+      # Secrets reused across both clouds — same values as the AWS deploy.
+      TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      TF_VAR_mailjet_api_key: ${{ secrets.MAILJET_API_KEY }}
+      TF_VAR_mailjet_secret_key: ${{ secrets.MAILJET_SECRET_KEY }}
+      TF_VAR_admin_password: ${{ secrets.ADMIN_PASSWORD }}
+      TF_VAR_ingestion_api_key: ${{ secrets.INGESTION_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Authenticate to Google Cloud (keyless, via WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Compute image URI
+        run: |
+          IMAGE_URI="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_AR_REPOSITORY }}/spring-auction:${GITHUB_SHA:0:7}"
+          echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
+
+      - name: Terraform init
+        working-directory: terraform/gcp/application
+        run: terraform init
+
+      # Chicken-and-egg: the Artifact Registry repo is Terraform-managed but must exist before we
+      # can push to it, and the full apply below needs an image already pushed (container_image has
+      # no default). Targeted apply for just the repo first, full apply after the push.
+      - name: Terraform apply (Artifact Registry repo only)
+        working-directory: terraform/gcp/application
+        env:
+          TF_VAR_container_image: ${{ env.IMAGE_URI }}
+        run: terraform apply -auto-approve -target=google_artifact_registry_repository.app
+
+      - name: Configure Docker auth for Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build, tag, and push image to Artifact Registry
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE_URI }}
+
+      - name: Terraform apply
+        working-directory: terraform/gcp/application
+        env:
+          TF_VAR_container_image: ${{ env.IMAGE_URI }}
+        run: terraform apply -auto-approve
+
+      - name: Show deployed URL
+        working-directory: terraform/gcp/application
+        run: terraform output -raw service_url
