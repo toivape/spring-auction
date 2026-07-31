@@ -1,5 +1,9 @@
 server:
   port: 8080
+  # Behind a TLS-terminating proxy (Cloud Run, AWS ALB) the app receives plain HTTP with
+  # X-Forwarded-Proto: https. Honor it so Spring builds https:// absolute URLs — otherwise the
+  # OAuth2 redirect_uri comes out as http:// and Google rejects it (redirect_uri_mismatch).
+  forward-headers-strategy: framework
 
 spring:
   application:
