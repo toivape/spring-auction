@@ -50,4 +50,9 @@ resource "google_sql_user" "app" {
   name     = "myuser"
   instance = google_sql_database_instance.app.name
   password = random_password.db.result
+
+  # On destroy, don't issue DROP ROLE — it always fails here because myuser owns the tables
+  # Flyway created ("role cannot be dropped because some objects depend on it"). Deleting the
+  # whole instance removes the user anyway, so ABANDON (drop from state, no SQL) is correct.
+  deletion_policy = "ABANDON"
 }
