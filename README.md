@@ -159,9 +159,10 @@ terraform apply -var project_id=spring-auction -var state_bucket_name=spring-auc
 ### First deploy — one manual OAuth step
 
 Cloud Run's URL is deterministic (`https://spring-auction-<projectnumber>.<region>.run.app`), so
-`GCP_APP_BASE_URL` is set upfront and no redeploy is needed. After the first `gcp-deploy`, add the
-service URL's callback to the existing Google OAuth client's **Authorized redirect URIs** (Console →
-APIs & Services → Credentials), or Google/admin login will fail:
+`GCP_APP_BASE_URL` is set upfront and no redeploy is needed. GCP uses its own Google OAuth client
+("GCP client", under the spring-auction project) — separate from AWS's. Add the service URL's callback
+to that client's **Authorized redirect URIs** (Console → APIs & Services → Credentials), or
+Google/admin login will fail:
 
 ```
 https://spring-auction-<projectnumber>.<region>.run.app/login/oauth2/code/google
