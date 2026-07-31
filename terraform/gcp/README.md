@@ -9,7 +9,9 @@ The GCP mirror of `../aws/` — same three-config, two-operator-model split. See
   table — the GCS backend locks natively (unlike AWS's S3 + DynamoDB).
 - **`deploy-role/`** — applied locally with admin creds. Creates the Workload Identity Federation
   pool/provider + `github-actions-deploy` service account that CI impersonates — can't apply itself,
-  since CI has no identity until this exists. (Not yet built — see ticket #29.)
+  since CI has no identity until this exists. **Applied manually, never by CI**: CI impersonates this
+  identity, so a role/permission change here has no effect until someone re-runs `terraform apply` on
+  this stack (the same "merge isn't enough" trap as AWS `deploy-role/`).
 - **`application/`** — applied exclusively by CI (the `gcp-deploy` workflow), on every deploy.
   VPC, Cloud SQL, Artifact Registry, Secret Manager, IAM, and the Cloud Run service. (Not yet built —
   see tickets #30–#33.)
@@ -40,4 +42,23 @@ If the first apply fails with an API-not-enabled error (a fresh project may not 
 
 ```bash
 gcloud services enable serviceusage.googleapis.com cloudresourcemanager.googleapis.com
+```
+
+## Applying `deploy-role/` by hand
+
+```bash
+cd terraform/gcp/deploy-role
+cp backend.hcl.example backend.hcl   # fill in the state bucket from bootstrap/'s output
+terraform init -backend-config=backend.hcl
+terraform apply \
+  -var="project_id=<PROJECT_ID>" \
+  -var="state_bucket_name=<state-bucket-name>"
+terraform output   # wif_provider + deploy_sa_email — set as repo Actions vars
+```
+
+Feed the outputs into the repo's Actions **variables** (not secrets):
+
+```bash
+gh variable set GCP_WIF_PROVIDER --body "<wif_provider>"
+gh variable set GCP_DEPLOY_SA     --body "<deploy_sa_email>"
 ```
