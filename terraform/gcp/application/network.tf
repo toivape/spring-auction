@@ -29,7 +29,10 @@ resource "google_service_networking_connection" "private_services" {
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_services.name]
 
-  # The peering is the known teardown failure point — `terraform destroy` can hang or error on
-  # it. The gcp-destroy workflow (ticket #34) removes it explicitly before destroy, the same way
-  # aws-destroy force-deletes the ECR repo. Left standard here so a normal apply is clean.
+  # The peering is the known teardown failure point — a plain `terraform destroy` can hang or
+  # error trying to remove the servicenetworking-managed peering. ABANDON makes destroy drop it
+  # from state without an API call; the gcp-destroy workflow (ticket #34) then deletes the actual
+  # peering via gcloud (after Cloud SQL is gone, which frees the range), the same belt-and-suspenders
+  # idea as aws-destroy force-deleting the ECR repo before terraform destroy.
+  deletion_policy = "ABANDON"
 }
