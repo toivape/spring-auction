@@ -1,8 +1,8 @@
 # Terraform (GCP)
 
 The GCP mirror of `../aws/` — same three-config, two-operator-model split. See
-`../../GCP-DEPLOYMENT-PLAN.md` for the full design, and `../../docs/adr/0004-ci-applies-application-stack.md`
-for the CI-applies-application reasoning (identical here).
+`../../docs/adr/0004-ci-applies-application-stack.md` for the CI-applies-application reasoning
+(identical here).
 
 - **`bootstrap/`** — one-time, applied locally with ADC admin creds, local state (can't depend on
   the GCS backend it creates). Creates the shared state bucket and enables the project APIs. No lock
@@ -10,11 +10,11 @@ for the CI-applies-application reasoning (identical here).
 - **`deploy-role/`** — applied locally with admin creds. Creates the Workload Identity Federation
   pool/provider + `github-actions-deploy` service account that CI impersonates — can't apply itself,
   since CI has no identity until this exists. (Not yet built — see ticket #29.)
-- **`application/`** — applied exclusively by CI (`.github/workflows/gcp-deploy.yml`), on every deploy.
+- **`application/`** — applied exclusively by CI (the `gcp-deploy` workflow), on every deploy.
   VPC, Cloud SQL, Artifact Registry, Secret Manager, IAM, and the Cloud Run service. (Not yet built —
-  see tickets #30–#32.)
+  see tickets #30–#33.)
 
-## One-time prerequisites (manual, per `GCP-DEPLOYMENT-PLAN.md`)
+## One-time prerequisites (manual)
 
 Billing must be linked to the project and you must be logged in **twice**:
 
