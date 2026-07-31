@@ -1,0 +1,80 @@
+name: gcp-destroy
+
+# Tears down the application stack (Cloud Run, Cloud SQL, VPC, Artifact Registry, secrets) to
+# stop the bill. Leaves bootstrap/ (GCS state) and deploy-role/ (WIF + deploy SA) in place —
+# those cost ~nothing and let a later gcp-deploy run work again without re-bootstrapping.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy" to confirm tearing down the application stack'
+        required: true
+
+jobs:
+  destroy:
+    name: Destroy
+    runs-on: ubuntu-latest
+    # Guard on main too: the backend prefix points at the one real deployment, so a dispatch from
+    # any other branch would still destroy it. Match gcp-deploy's branch guard.
+    if: github.ref == 'refs/heads/main' && github.event.inputs.confirm == 'destroy'
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      # terraform destroy still evaluates every variable; container_image has no default, so feed
+      # it a placeholder — the value is irrelevant when the resource is being removed.
+      TF_VAR_container_image: "placeholder:destroy"
+      TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+      TF_VAR_region: ${{ vars.GCP_REGION }}
+      TF_VAR_google_client_id: ${{ vars.GOOGLE_CLIENT_ID }}
+      TF_VAR_app_base_url: ${{ vars.GCP_APP_BASE_URL }}
+      TF_VAR_mail_from: ${{ vars.GCP_MAIL_FROM }}
+      TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      TF_VAR_mailjet_api_key: ${{ secrets.MAILJET_API_KEY }}
+      TF_VAR_mailjet_secret_key: ${{ secrets.MAILJET_SECRET_KEY }}
+      TF_VAR_admin_password: ${{ secrets.ADMIN_PASSWORD }}
+      TF_VAR_ingestion_api_key: ${{ secrets.INGESTION_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Authenticate to Google Cloud (keyless, via WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
+
+      - name: Terraform init
+        working-directory: terraform/gcp/application
+        run: terraform init
+
+      # Cloud SQL holds the private-services-access range, so it must go first — only then can the
+      # servicenetworking peering be removed (next step), which in turn frees the VPC to be deleted.
+      - name: Terraform destroy Cloud SQL first (frees the peering range)
+        working-directory: terraform/gcp/application
+        run: terraform destroy -auto-approve -target=google_sql_database_instance.app
+
+      # The known teardown failure point (the GCP analog of aws-destroy's ECR force-delete): the
+      # servicenetworking-managed peering blocks VPC deletion and terraform won't remove it
+      # (deletion_policy = ABANDON). Delete it here now that Cloud SQL is gone. `|| true` keeps an
+      # already-absent peering from failing a re-run.
+      - name: Delete the servicenetworking VPC peering
+        working-directory: terraform/gcp/application
+        run: |
+          NETWORK=$(terraform output -raw vpc_network | awk -F/ '{print $NF}')
+          gcloud compute networks peerings delete servicenetworking-googleapis-com \
+            --network="$NETWORK" --project="${{ vars.GCP_PROJECT_ID }}" --quiet || true
+
+      # Everything else: Cloud Run, Artifact Registry, secrets, runtime SA, the reserved range,
+      # subnet, and the VPC (now unblocked). The connection is ABANDONed from state — no API call.
+      - name: Terraform destroy
+        working-directory: terraform/gcp/application
+        run: terraform destroy -auto-approve
